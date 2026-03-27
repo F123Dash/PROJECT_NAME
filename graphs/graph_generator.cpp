@@ -44,3 +44,28 @@ Graph generate_random_graph(int n, double p, int w_min = 1, int w_max = 10) {
 
     return g;
 }
+
+Graph generate_tree_graph(int n, int w_min = 1, int w_max = 10) {
+    if (n <= 0) {
+        throw std::invalid_argument("n must be positive");
+    }
+    if (w_min > w_max) {
+        throw std::invalid_argument("Invalid weight range");
+    }
+
+    Graph g(n);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> weight_dist(w_min, w_max);
+
+    // Ensure connectivity: node i connects to any node < i
+    for (int i = 1; i < n; ++i) {
+        std::uniform_int_distribution<> parent_dist(0, i - 1);
+        int parent = parent_dist(gen);
+        int w = weight_dist(gen);
+        g.add_edge(i, parent, w);
+    }
+
+    return g;
+}
