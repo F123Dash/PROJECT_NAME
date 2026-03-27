@@ -69,3 +69,42 @@ Graph generate_tree_graph(int n, int w_min = 1, int w_max = 10) {
 
     return g;
 }
+
+Graph generate_grid_graph(int rows, int cols, int w_min = 1, int w_max = 10) {
+    if (rows <= 0 || cols <= 0) {
+        throw std::invalid_argument("Invalid grid size");
+    }
+    if (w_min > w_max) {
+        throw std::invalid_argument("Invalid weight range");
+    }
+
+    int n = rows * cols;
+    Graph g(n);
+
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_int_distribution<> weight_dist(w_min, w_max);
+
+    for (int i = 0; i < rows; ++i) {
+        for (int j = 0; j < cols; ++j) {
+
+            int u = i * cols + j;
+
+            // Right neighbor
+            if (j + 1 < cols) {
+                int v = i * cols + (j + 1);
+                int w = weight_dist(gen);
+                g.add_edge(u, v, w);
+            }
+
+            // Down neighbor
+            if (i + 1 < rows) {
+                int v = (i + 1) * cols + j;
+                int w = weight_dist(gen);
+                g.add_edge(u, v, w);
+            }
+        }
+    }
+
+    return g;
+}
