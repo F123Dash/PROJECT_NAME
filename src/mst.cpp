@@ -1,5 +1,5 @@
 #include "mst.h"
-#include "../include/union_find.h"
+#include "union_find.h"
 #include <queue>
 #include <tuple>
 #include <algorithm>
