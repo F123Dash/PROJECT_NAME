@@ -1,8 +1,10 @@
+#ifndef TOPOLOGY_LOADER_H
+#define TOPOLOGY_LOADER_H
+
 #include <iostream>
 #include <fstream>
 #include <vector>
 #include <tuple>
-#include "topology_loader.h"
 using namespace std;
 
 class Graph {
@@ -35,29 +37,6 @@ public:
     }
 };
 
-Graph load_graph(const string &filename) {
-    ifstream file(filename);
-    if (!file.is_open()) {
-        throw runtime_error("Error: Cannot open file");
-    }
+Graph load_graph(const string &filename);
 
-    vector<tuple<int,int,double>> edges;
-    int u, v;
-    double w;
-    int max_node = 0;
-
-    while (file >> u >> v >> w) {
-        edges.push_back({u, v, w});
-        if (u > max_node) max_node = u;
-        if (v > max_node) max_node = v;
-    }
-
-    Graph g(max_node + 1);
-
-    for (auto &e : edges) {
-        tie(u, v, w) = e;
-        g.add_edge(u, v, w);
-    }
-
-    return g;
-}
+#endif
