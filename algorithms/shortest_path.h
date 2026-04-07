@@ -2,7 +2,7 @@
 #define SHORTEST_PATH_H
 
 #include <vector>
-#include "graphs.h"
+#include "../graphs/graphs.h"
 
 void dijkstra(Graph &g, int source, std::vector<int> &dist, std::vector<int> &parent);
 
