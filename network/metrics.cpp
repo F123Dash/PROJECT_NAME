@@ -156,7 +156,34 @@ void MetricsManager::onPacketDropped_NoRoute(int packet_id, int current_time) {
     cout << "[Metrics] DROPPED packet_id=" << packet_id
          << " reason=NO_ROUTE" << endl;
 }
+void MetricsManager::onPacketDropped_QueueOverflow(int packet_id, int current_time) {
+    if (packets.find(packet_id) == packets.end()) {
+        cerr << "[MetricsManager] ERROR: onPacketDropped_QueueOverflow - packet " << packet_id << " not found!" << endl;
+        return;
+    }
+    
+    PerPacketMetrics& ppm = packets[packet_id];
+    ppm.delivery_time = -1;
+    ppm.latency = -1;
+    ppm.status = PacketStatus::DROPPED_OTHER;
+    ppm.status_reason = "Queue overflow";
+    
+    cout << "[Metrics] DROPPED packet_id=" << packet_id
+         << " reason=QUEUE_OVERFLOW" << endl;
+}
 
+void MetricsManager::onQueueDelay(int packet_id, int delay_ms) {
+    if (packets.find(packet_id) == packets.end()) {
+        cerr << "[MetricsManager] ERROR: onQueueDelay - packet " << packet_id << " not found!" << endl;
+        return;
+    }
+    
+    PerPacketMetrics& ppm = packets[packet_id];
+    ppm.queue_delay = delay_ms;
+    
+    cout << "[Metrics] QUEUE_DELAY packet_id=" << packet_id
+         << " delay=" << delay_ms << " ms" << endl;
+}
 // ============================================================================
 // Query Methods
 // ============================================================================

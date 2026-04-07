@@ -76,6 +76,14 @@ public:
     /// Records drop reason
     void onPacketDropped_NoRoute(int packet_id, int current_time);
     
+    /// Call from Queue::enqueue() when packet dropped due to overflow
+    /// Records drop reason for queue system
+    void onPacketDropped_QueueOverflow(int packet_id, int current_time);
+    
+    /// Call from Queue::dequeue() to record queue delay
+    /// Records the time packet spent in queue
+    void onQueueDelay(int packet_id, int delay_ms);
+    
     // ========================================================================
     // Query Methods
     // ========================================================================

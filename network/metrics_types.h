@@ -26,13 +26,14 @@ struct PerPacketMetrics {
     int latency;                 // -1 if not delivered
     int first_hop_time;          // -1 if never hopped
     int hop_count;
+    int queue_delay;             // Time spent in queue (0 if bypassed queue)
     PacketStatus status;
     string status_reason;
     
     PerPacketMetrics()
         : packet_id(-1), source(-1), destination(-1), creation_time(0),
           delivery_time(-1), latency(-1), first_hop_time(-1), hop_count(0),
-          status(PacketStatus::CREATED), status_reason("") {}
+          queue_delay(0), status(PacketStatus::CREATED), status_reason("") {}
 };
 
 // ============================================================================
