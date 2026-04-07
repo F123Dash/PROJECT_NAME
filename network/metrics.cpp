@@ -165,7 +165,7 @@ void MetricsManager::onPacketDropped_QueueOverflow(int packet_id, int current_ti
     PerPacketMetrics& ppm = packets[packet_id];
     ppm.delivery_time = -1;
     ppm.latency = -1;
-    ppm.status = PacketStatus::DROPPED_OTHER;
+    ppm.status = PacketStatus::DROPPED_ERROR;
     ppm.status_reason = "Queue overflow";
     
     cout << "[Metrics] DROPPED packet_id=" << packet_id
@@ -220,8 +220,8 @@ GlobalMetrics MetricsManager::computeGlobalMetrics() {
             latencies.push_back(ppm.latency);
             total_hops += ppm.hop_count;
             
-            gm.min_latency = min(gm.min_latency, ppm.latency);
-            gm.max_latency = max(gm.max_latency, ppm.latency);
+            gm.min_latency = min(gm.min_latency, (double)ppm.latency);
+            gm.max_latency = max(gm.max_latency, (double)ppm.latency);
         } else {
             gm.dropped++;
             if (ppm.status == PacketStatus::DROPPED_TTL) {

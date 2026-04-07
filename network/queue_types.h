@@ -1,6 +1,8 @@
 #ifndef NETWORK_QUEUE_TYPES_H
 #define NETWORK_QUEUE_TYPES_H
 
+#include <climits>
+
 // ============================================================================
 // Queue Packet Metadata - Lightweight packet representation for queueing
 // ============================================================================
