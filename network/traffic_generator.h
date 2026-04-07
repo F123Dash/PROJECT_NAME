@@ -2,8 +2,8 @@
 #define TRAFFIC_GENERATOR_H
 
 #include "flow.h"
-#include "../src/packet.h"
-#include "../src/event.h"
+#include "../engine/packet.h"
+#include "../engine/event.h"
 #include <vector>
 #include <map>
 

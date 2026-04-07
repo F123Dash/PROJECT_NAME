@@ -1,7 +1,7 @@
 #ifndef NETWORK_LAYER_H
 #define NETWORK_LAYER_H
 
-#include "../src/packet.h"
+#include "../engine/packet.h"
 
 // Forward declaration
 struct Node;

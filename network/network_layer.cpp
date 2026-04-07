@@ -1,5 +1,5 @@
 #include "network_layer.h"
-#include "../src/node.h"
+#include "../engine/node.h"
 #include <iostream>
 
 NetworkLayer::NetworkLayer(Node* n) : node(n) {

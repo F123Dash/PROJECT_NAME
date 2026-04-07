@@ -1,7 +1,7 @@
 #ifndef TRANSPORT_H
 #define TRANSPORT_H
 
-#include "../src/packet.h"
+#include "../engine/packet.h"
 
 // Base Transport interface
 class Transport {

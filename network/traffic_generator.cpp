@@ -1,5 +1,5 @@
 #include "traffic_generator.h"
-#include "../src/node.h"
+#include "../engine/node.h"
 #include <random>
 #include <iostream>
 
