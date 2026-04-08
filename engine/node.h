@@ -8,18 +8,27 @@
 #include "packet.h"
 using namespace std;
 
-// Forward declaration
+// Forward declarations
 class NetworkLayer;
+class Transport;
+class Graph;
 
 struct Node {
     int id;                          // unique node ID
-    map<int, int> routing_table;     // destination → next hop node ID
+    vector<int> routing_table;       // destination → next hop node ID (indexed by dest)
     queue<Packet> pkt_queue;         // packets waiting to be sent
     vector<int> interfaces;          // connected link IDs
+    
+    // Core components
     NetworkLayer* network_layer;     // network layer for routing and forwarding
+    Transport* transport;            // transport protocol (TCP/UDP)
+    Graph* graph;                    // reference to network topology
 
     // constructor
-    Node(int node_id);
+    Node(int node_id = 0);
+    
+    // Destructor
+    virtual ~Node() = default;
     
     // Initialize network layer (call after construction)
     void initialize_network_layer();

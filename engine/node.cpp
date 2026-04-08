@@ -3,7 +3,7 @@
 #include <iostream>
 using namespace std;
 
-Node::Node(int node_id) : network_layer(nullptr) {
+Node::Node(int node_id) : network_layer(nullptr), transport(nullptr), graph(nullptr) {
     id = node_id;
 }
 
@@ -15,6 +15,10 @@ void Node::initialize_network_layer() {
 }
 
 void Node::add_route(int destination, int next_hop) {
+    // Ensure vector is large enough
+    if (destination >= routing_table.size()) {
+        routing_table.resize(destination + 1, -1);
+    }
     routing_table[destination] = next_hop;
 }
 
@@ -23,8 +27,8 @@ void Node::add_interface(int link_id) {
 }
 
 int Node::get_next_hop(int destination) const {
-    if (routing_table.count(destination)) {
-        return routing_table.at(destination);
+    if (destination >= 0 && destination < routing_table.size()) {
+        return routing_table[destination];
     }
     return -1;
 }
