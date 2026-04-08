@@ -103,4 +103,7 @@ public:
     void exportMetricsToFile(const string& filename);
 };
 
+// Global metrics printer
+void print_metrics();
+
 #endif // NETWORK_METRICS_H

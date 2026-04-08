@@ -6,7 +6,7 @@
 using namespace std;
 
 struct Event {
-    int time;                  // event time
+    double time;               // event time (use double for precision)
     string type;              // event type (e.g., PACKET_SEND)
     function<void()> callback; // function to execute
 

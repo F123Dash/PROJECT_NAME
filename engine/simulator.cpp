@@ -1,6 +1,7 @@
 #include "simulator.h"
 #include "../graphs/graph_generator.h"
 #include "event.h"
+#include "../network/metrics.h"
 #include <iostream>
 #include <map>
 
@@ -11,13 +12,13 @@ extern void print_metrics();
 Simulator::Simulator() {
     graph = nullptr;
     integration = nullptr;
-    simulation_time = 10.0; // default
+    simulation_time = 1.0;  // Reduced for testing
 }
 
 // ---------------- PHASE 1: LOAD GRAPH ----------------
 void Simulator::load_topology() {
     std::cout << "\n[Simulator] Phase 1: Loading topology..." << std::endl;
-    graph = new Graph(generate_graph(GraphType::RANDOM, 10, 0.4, 0, 0, 1, 10));
+    graph = new Graph(generate_graph(GraphType::TREE, 5, 0, 0, 0, 1, 10));  // Tree topology (guaranteed connected)
     std::cout << "[Simulator]   Graph created: " << graph->V << " nodes" << std::endl;
 }
 
@@ -37,6 +38,10 @@ void Simulator::init_system() {
 
     integration->attach_layers(true);  // Use TCP
     std::cout << "[Simulator]   Network and transport layers attached" << std::endl;
+
+    // Initialize metrics tracking
+    MetricsManager::getInstance()->initialize(0, "");
+    std::cout << "[Simulator]   Metrics engine initialized" << std::endl;
 }
 
 // ---------------- PHASE 3: INIT TRAFFIC ----------------
@@ -76,6 +81,10 @@ void Simulator::run() {
 // ---------------- PHASE 5: FINALIZE ----------------
 void Simulator::finalize() {
     std::cout << "\n[Simulator] Phase 5: Finalizing simulation..." << std::endl;
+    
+    // Finalize metrics
+    MetricsManager::getInstance()->finalize((int)simulation_time);
+    
     std::cout << "\n--- Metrics ---" << std::endl;
 
     print_metrics();

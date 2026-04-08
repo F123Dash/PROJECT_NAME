@@ -2,16 +2,6 @@
 #include <iostream>
 using namespace std;
 
-Packet::Packet(int src, int dest, int sz, string proto, int ts, int ttl_val) {
-    source      = src;
-    destination = dest;
-    size        = sz;
-    protocol    = proto;
-    timestamp   = ts;
-    ttl         = ttl_val;
-    path_history.push_back(src); // source is the first hop
-}
-
 bool Packet::is_expired() const {
     return ttl <= 0;
 }

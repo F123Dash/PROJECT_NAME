@@ -364,3 +364,23 @@ void MetricsManager::exportMetricsToFile(const string& filename) {
     file.close();
     cout << "[MetricsManager] Metrics exported to " << filename << endl;
 }
+
+// ============================================================================
+// Print Metrics - Global metrics output
+// ============================================================================
+void print_metrics() {
+    MetricsManager* mgr = MetricsManager::getInstance();
+    GlobalMetrics gm = mgr->computeGlobalMetrics();
+    
+    cout << "\n--- Global Metrics Summary ---\n";
+    cout << "Total Packets: " << gm.total_packets << "\n";
+    cout << "Delivered: " << gm.delivered << "\n";
+    cout << "Dropped: " << gm.dropped << "\n";
+    cout << "Average Latency (ms): " << gm.avg_latency << "\n";
+    cout << "Jitter (ms): " << gm.jitter << "\n";
+    cout << "Min Latency (ms): " << (gm.min_latency == INT_MAX ? 0 : gm.min_latency) << "\n";
+    cout << "Max Latency (ms): " << gm.max_latency << "\n";
+    cout << "Packet Loss Rate (%): " << gm.loss_rate << "\n";
+    cout << "Average Hops: " << gm.avg_hops << "\n";
+    cout << "Throughput (pkt/ms): " << gm.throughput << "\n";
+}

@@ -74,6 +74,16 @@ void Integration::build_routing_tables() {
     }
 
     cout << "[Integration]   Routing tables built" << endl;
+    
+    // Debug: Print routing tables
+    cout << "[Integration] Routing table contents:" << endl;
+    for (int i = 0; i < n; i++) {
+        cout << "  [Node " << i << "] ";
+        for (int dest = 0; dest < n; dest++) {
+            cout << dest << "->" << nodes[i]->routing_table[dest] << " ";
+        }
+        cout << endl;
+    }
 }
 
 // Step 3: Attach Network + Transport

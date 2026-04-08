@@ -1,5 +1,6 @@
 #include "traffic_generator.h"
 #include "../engine/node.h"
+#include "../network/metrics.h"
 #include <random>
 #include <iostream>
 
@@ -16,12 +17,12 @@ void TrafficGenerator::add_flow(const Flow& f) {
     flows.push_back(f);
 }
 
-void TrafficGenerator::schedule_flows(std::map<int, Node>& nodes_map) {
+void TrafficGenerator::schedule_flows(std::map<int, Node*>& nodes_map) {
     node_map_ptr = &nodes_map;
 
     for (const auto& f : flows) {
         Event e;
-        e.time = (int)f.start_time;
+        e.time = f.start_time;  // No cast - preserve precision
         e.type = "PACKET_GENERATE";
 
         e.callback = [this, f, &nodes_map]() {
@@ -32,7 +33,7 @@ void TrafficGenerator::schedule_flows(std::map<int, Node>& nodes_map) {
     }
 }
 
-void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int, Node>& nodes_map) {
+void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int, Node*>& nodes_map) {
     // Stop condition: flow duration exceeded
     if (time > f.start_time + f.duration) {
         return;
@@ -44,8 +45,14 @@ void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int,
         return;
     }
 
-    // Create packet
+    // Record packet creation in metrics to get packet_id
+    int packet_id = MetricsManager::getInstance()->onPacketCreated(
+        f.source, f.destination, (int)time, f.packet_size
+    );
+
+    // Create packet with the packet_id
     Packet pkt(
+        packet_id,
         f.source,
         f.destination,
         f.packet_size,
@@ -54,9 +61,11 @@ void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int,
         64  // TTL
     );
 
-    // Send via source node
-    Node& src_node = nodes_map.at(f.source);
-    src_node.send_packet(pkt);
+    // Send via source node (use pointer)
+    Node* src_node = nodes_map.at(f.source);
+    if (src_node != nullptr) {
+        src_node->send_packet(pkt);
+    }
 
     std::cout << "[TrafficGenerator] Generated packet: src=" << f.source
               << " dst=" << f.destination
@@ -95,14 +104,14 @@ void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int,
     schedule_next_packet(f, next_time, nodes_map);
 }
 
-void TrafficGenerator::schedule_next_packet(const Flow& f, double next_time, std::map<int, Node>& nodes_map) {
+void TrafficGenerator::schedule_next_packet(const Flow& f, double next_time, std::map<int, Node*>& nodes_map) {
     // Do not schedule if beyond flow duration
     if (next_time > f.start_time + f.duration) {
         return;
     }
 
     Event e;
-    e.time = (int)next_time;
+    e.time = next_time;  // No cast - preserve precision
     e.type = "PACKET_GENERATE";
 
     e.callback = [this, f, next_time, &nodes_map]() {

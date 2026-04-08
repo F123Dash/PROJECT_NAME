@@ -1,5 +1,7 @@
 #include "network_layer.h"
 #include "../engine/node.h"
+#include "../engine/integration.h"
+#include "../network/metrics.h"
 #include <iostream>
 
 NetworkLayer::NetworkLayer(Node* n) : node(n) {
@@ -36,16 +38,19 @@ void NetworkLayer::receive(Packet p) {
     // Step 3: Check if TTL expired
     if (p.ttl <= 0) {
         std::cout << "[NetworkLayer] TTL EXPIRED! Dropping packet at node " << node->id << std::endl;
-        // TODO: Update metrics counter for dropped packets
+        extern double current_time;
+        MetricsManager::getInstance()->onPacketDropped_TTL(p.packet_id, (int)current_time);
         return;
     }
 
     // Step 4: Check if destination reached
     if (p.destination == node->id) {
         std::cout << "[NetworkLayer] DESTINATION REACHED at node " << node->id << std::endl;
-        // TODO: Update metrics - latency = current_time - p.timestamp
-        // Deliver to transport layer
-        // node->transport->receive(p);  // if transport interface exists
+        // Packet delivered successfully - record in metrics
+        extern double current_time;
+        MetricsManager::getInstance()->onPacketDelivered(
+            p.packet_id, (int)current_time, (int)p.path_history.size()
+        );
         p.print_info();
         return;
     }
@@ -55,7 +60,7 @@ void NetworkLayer::receive(Packet p) {
     forward(p);
 }
 
-// Core forwarding logic: lookup routing table and send via node
+// Core forwarding logic: lookup routing table and deliver to next hop node
 void NetworkLayer::forward(Packet p) {
     if (!node) return;
 
@@ -70,10 +75,19 @@ void NetworkLayer::forward(Packet p) {
     if (next_hop == -1) {
         std::cout << "[NetworkLayer] NO ROUTE to destination " << p.destination
                   << " at node " << node->id << ". Dropping packet." << std::endl;
-        // TODO: Update metrics counter for dropped packets (unreachable)
+        extern double current_time;
+        MetricsManager::getInstance()->onPacketDropped_NoRoute(p.packet_id, (int)current_time);
         return;
     }
 
-    // Send to link layer via node's packet queue
-    node->send_packet(p);
+    // Get next hop node and deliver packet
+    extern Integration* GLOBAL_INTEGRATION;
+    if (GLOBAL_INTEGRATION) {
+        Node* next_node = GLOBAL_INTEGRATION->get_node(next_hop);
+        if (next_node && next_node->network_layer) {
+            // Deliver to next hop's network layer
+            std::cout << "[NetworkLayer] DELIVERING to node " << next_hop << std::endl;
+            next_node->network_layer->receive(p);
+        }
+    }
 }
