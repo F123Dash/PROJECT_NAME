@@ -1,0 +1,22 @@
+# Network Simulator Configuration
+# Format: key=value (one per line)
+# Comments start with #
+
+# Graph topology
+nodes=10
+topology=tree
+
+# Random topology parameters (if topology=random)
+probability=0.4
+
+# Traffic configuration
+traffic_type=constant
+rate=5
+packet_size=512
+
+# Simulation duration
+simulation_time=20
+
+# Link properties
+bandwidth=100
+delay=2
