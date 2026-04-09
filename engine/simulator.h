@@ -4,10 +4,12 @@
 #include "../graphs/graphs.h"
 #include "integration.h"
 #include "../network/traffic_generator.h"
+#include "config.h"
 #include <map>
 
 class Simulator {
 public:
+    Config config;
     Graph* graph;
     Integration* integration;
     TrafficGenerator traffic;
@@ -17,6 +19,7 @@ public:
 
     Simulator();
 
+    void load_config(const std::string& filename);
     void load_topology();
     void init_system();
     void init_traffic();

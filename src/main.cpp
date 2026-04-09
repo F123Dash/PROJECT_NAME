@@ -1,14 +1,22 @@
 #include "../engine/simulator.h"
+#include <iostream>
+#include <stdexcept>
 
 int main() {
-    Simulator sim;
+    try {
+        Simulator sim;
 
-    sim.load_topology();
-    sim.init_system();
-    sim.init_traffic();
+        sim.load_config("config/config.txt");
+        sim.load_topology();
+        sim.init_system();
+        sim.init_traffic();
 
-    sim.run();
-    sim.finalize();
+        sim.run();
+        sim.finalize();
 
-    return 0;
+        return 0;
+    } catch (const std::exception& e) {
+        std::cerr << "[ERROR] " << e.what() << std::endl;
+        return 1;
+    }
 }

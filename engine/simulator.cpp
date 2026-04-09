@@ -12,19 +12,43 @@ extern void print_metrics();
 Simulator::Simulator() {
     graph = nullptr;
     integration = nullptr;
-    simulation_time = 1.0;  // Reduced for testing
+    simulation_time = 1.0;  // Default, will be overridden by config
+}
+
+// ---------------- PHASE 0: LOAD CONFIG ----------------
+void Simulator::load_config(const std::string& filename) {
+    std::cout << "\n[Simulator] Phase 0: Loading configuration..." << std::endl;
+    if (!config.load(filename)) {
+        throw std::runtime_error("Failed to load config file: " + filename);
+    }
+    std::cout << "[Simulator]   Configuration loaded" << std::endl;
 }
 
 // ---------------- PHASE 1: LOAD GRAPH ----------------
 void Simulator::load_topology() {
     std::cout << "\n[Simulator] Phase 1: Loading topology..." << std::endl;
-    graph = new Graph(generate_graph(GraphType::TREE, 5, 0, 0, 0, 1, 10));  // Tree topology (guaranteed connected)
-    std::cout << "[Simulator]   Graph created: " << graph->V << " nodes" << std::endl;
+    
+    int num_nodes = config.get_int("nodes");
+    std::string topology_type = config.get_string("topology");
+    
+    if (topology_type == "random") {
+        double probability = config.get_double("probability");
+        graph = new Graph(generate_graph(GraphType::RANDOM, num_nodes, probability, 0, 0, 1, 10));
+    } else if (topology_type == "tree") {
+        graph = new Graph(generate_graph(GraphType::TREE, num_nodes, 0, 0, 0, 1, 10));
+    } else {
+        throw std::runtime_error("Unknown topology type: " + topology_type);
+    }
+    
+    std::cout << "[Simulator]   Graph created: " << graph->V << " nodes (type=" << topology_type << ")" << std::endl;
 }
 
 // ---------------- PHASE 2: INIT SYSTEM ----------------
 void Simulator::init_system() {
     std::cout << "\n[Simulator] Phase 2: Initializing system..." << std::endl;
+
+    // Set simulation time from config
+    simulation_time = config.get_double("simulation_time");
 
     integration = new Integration(graph);
     GLOBAL_INTEGRATION = integration;
@@ -51,14 +75,25 @@ void Simulator::init_traffic() {
     Flow f;
     f.source = 0;
     f.destination = graph->V - 1;
-    f.rate = 5;
-    f.packet_size = 512;
+    f.rate = config.get_double("rate");
+    f.packet_size = config.get_int("packet_size");
     f.start_time = 0;
     f.duration = simulation_time;
-    f.type = TrafficType::CONSTANT;
+    
+    std::string traffic_type_str = config.get_string("traffic_type");
+    if (traffic_type_str == "constant") {
+        f.type = TrafficType::CONSTANT;
+    } else if (traffic_type_str == "random") {
+        f.type = TrafficType::RANDOM;
+    } else if (traffic_type_str == "burst") {
+        f.type = TrafficType::BURST;
+    } else {
+        throw std::runtime_error("Unknown traffic type: " + traffic_type_str);
+    }
 
     traffic.add_flow(f);
-    std::cout << "[Simulator]   Flow added: " << f.source << " → " << f.destination << std::endl;
+    std::cout << "[Simulator]   Flow added: " << f.source << " → " << f.destination 
+              << " (rate=" << f.rate << " pkt/s, type=" << traffic_type_str << ")" << std::endl;
 
     // Build persistent node map with pointers to actual nodes
     for (int i = 0; i < integration->nodes.size(); i++) {
