@@ -52,7 +52,7 @@ void handle_packet_forward(Packet p, int current_node, int next_hop) {
 
     Event e;
     e.time = current_simulation_time + delay;
-    EventType::PACKET_SEND;
+    e.type = EventType::PACKET_DEQUEUE;
 
     e.callback = [p, current_node, next_hop]() {
         handle_packet_dequeue(p, current_node, next_hop);
@@ -83,7 +83,7 @@ void handle_packet_dequeue(Packet p, int current_node, int next_hop) {
     // 🔹 Schedule arrival event
     Event e;
     e.time = current_simulation_time;
-    EventType::PACKET_RECEIVE;
+    e.type = EventType::PACKET_RECEIVE;
 
     e.callback = [=]() mutable {
         next_node->receive_packet(p);
