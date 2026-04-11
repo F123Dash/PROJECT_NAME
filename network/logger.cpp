@@ -280,3 +280,25 @@ void Logger::exportToCSV(const string& filename) {
     file.close();
     cout << "[Logger] Logs exported to CSV: " << filename << endl;
 }
+
+// ============================================================================
+// Simple Logging Function (for general debugging)
+// ============================================================================
+
+void log(LogLevel level, const std::string& msg) {
+    std::string level_str;
+
+    switch (level) {
+        case LogLevel::INFO:
+            level_str = "INFO";
+            break;
+        case LogLevel::DEBUG:
+            level_str = "DEBUG";
+            break;
+        case LogLevel::ERROR:
+            level_str = "ERROR";
+            break;
+    }
+
+    std::cout << "[" << level_str << "] " << msg << std::endl;
+}

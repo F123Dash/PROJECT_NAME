@@ -1,5 +1,7 @@
 #include "integration.h"
 #include "../algorithms/shortest_path.h"
+#include "../network/logger.h"
+#include "../network/debug.h"
 #include <iostream>
 #include <climits>
 
@@ -71,6 +73,18 @@ void Integration::build_routing_tables() {
         }
 
         nodes[i]->routing_table = routing;
+        
+        // Debug: Log routing decisions
+        if (DEBUG_MODE) {
+            for (int dest = 0; dest < n; dest++) {
+                if (dest != i && routing[dest] != -1) {
+                    log(LogLevel::DEBUG,
+                        "Route from node " + std::to_string(i) +
+                        " to " + std::to_string(dest) +
+                        " via " + std::to_string(routing[dest]));
+                }
+            }
+        }
     }
 
     cout << "[Integration]   Routing tables built" << endl;
@@ -93,6 +107,7 @@ void Integration::attach_layers(bool use_tcp) {
     for (auto node : nodes) {
         // Network layer
         node->network_layer = new NetworkLayer(node);
+        ASSERT(node->network_layer != nullptr, "Failed to create NetworkLayer");
         cout << "  [Node " << node->id << "] NetworkLayer attached" << endl;
 
         // Transport layer (choose TCP or UDP)
@@ -100,6 +115,14 @@ void Integration::attach_layers(bool use_tcp) {
             node->transport = new TCP();
         } else {
             node->transport = new UDP();
+        }
+        ASSERT(node->transport != nullptr, "Failed to create Transport layer");
+        
+        if (DEBUG_MODE) {
+            log(LogLevel::DEBUG,
+                "Node " + std::to_string(node->id) +
+                " layers attached (routing_table=" +
+                std::to_string(node->routing_table.size()) + " entries)");
         }
     }
 

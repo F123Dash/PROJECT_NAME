@@ -1,6 +1,8 @@
 #include "traffic_generator.h"
 #include "../engine/node.h"
 #include "../network/metrics.h"
+#include "../network/logger.h"
+#include "../network/debug.h"
 #include <random>
 #include <iostream>
 
@@ -40,10 +42,8 @@ void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int,
     }
 
     // Verify source node exists
-    if (nodes_map.find(f.source) == nodes_map.end()) {
-        std::cerr << "[TrafficGenerator] ERROR: Source node " << f.source << " not found\n";
-        return;
-    }
+    ASSERT(nodes_map.find(f.source) != nodes_map.end(),
+           "Source node " + std::to_string(f.source) + " not found");
 
     // Record packet creation in metrics to get packet_id
     int packet_id = MetricsManager::getInstance()->onPacketCreated(
@@ -63,9 +63,17 @@ void TrafficGenerator::generate_packet(const Flow& f, double time, std::map<int,
 
     // Send via source node (use pointer)
     Node* src_node = nodes_map.at(f.source);
-    if (src_node != nullptr) {
-        src_node->send_packet(pkt);
+    ASSERT(src_node != nullptr, "Source node pointer is NULL");
+    
+    if (DEBUG_MODE) {
+        log(LogLevel::INFO,
+            "Generated packet " + std::to_string(packet_id) +
+            ": " + std::to_string(f.source) +
+            " -> " + std::to_string(f.destination) +
+            " (size=" + std::to_string(f.packet_size) + " bytes)");
     }
+    
+    src_node->send_packet(pkt);
 
     std::cout << "[TrafficGenerator] Generated packet: src=" << f.source
               << " dst=" << f.destination

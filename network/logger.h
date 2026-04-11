@@ -55,4 +55,11 @@ public:
     int getTotalLogs() const { return total_logs; }
 };
 
+// ============================================================================
+// Simple Logging API (for general purpose debugging)
+// ============================================================================
+// (LogLevel enum is defined in log_types.h)
+
+void log(LogLevel level, const std::string& msg);
+
 #endif // NETWORK_LOGGER_H
