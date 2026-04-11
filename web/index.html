@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Simulator</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/cytoscape@3.29.2/dist/cytoscape.min.js"></script>
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <h1>Network Simulator</h1>
+      <p>Build or upload a topology, then run the compiled C++ simulator.</p>
+    </div>
+    <button id="runSimulation" class="primary">Run Simulation</button>
+  </header>
+
+  <main class="app-shell">
+    <aside class="panel left-panel">
+      <div class="tabs" role="tablist">
+        <button id="uploadTab" class="tab active" type="button">Upload File</button>
+        <button id="manualTab" class="tab" type="button">Manual Graph</button>
+      </div>
+
+      <section id="uploadPanel" class="tab-panel active">
+        <h2>Upload Topology</h2>
+        <p class="hint">Supported formats: JSON, TXT, CSV.</p>
+        <label class="file-drop">
+          <span>Choose topology file</span>
+          <input id="fileUpload" type="file" accept=".json,.txt,.csv,application/json,text/plain,text/csv">
+        </label>
+        <div id="fileName" class="file-name">No file selected</div>
+
+        <div class="format-help">
+          <strong>TXT</strong>
+          <code>A B 10 57</code>
+          <strong>CSV</strong>
+          <code>source,target,weight,delay</code>
+        </div>
+      </section>
+
+      <section id="manualPanel" class="tab-panel">
+        <h2>Manual Graph</h2>
+
+        <div class="control-group">
+          <h3>Node Controls</h3>
+          <label for="nodeId">Node ID</label>
+          <div class="inline">
+            <input id="nodeId" type="text" placeholder="A" autocomplete="off">
+            <button id="addNode" type="button">Add Node</button>
+          </div>
+        </div>
+
+        <div class="control-group">
+          <h3>Edge Controls</h3>
+          <div class="field-grid">
+            <label>
+              Source
+              <input id="edgeSource" type="text" placeholder="A" autocomplete="off">
+            </label>
+            <label>
+              Target
+              <input id="edgeTarget" type="text" placeholder="B" autocomplete="off">
+            </label>
+            <label>
+              Weight
+              <input id="edgeWeight" type="number" min="0" step="0.1" value="1">
+            </label>
+            <label>
+              Delay
+              <input id="edgeDelay" type="number" min="0" step="0.1" value="1">
+            </label>
+          </div>
+          <button id="addEdge" type="button">Add Edge</button>
+        </div>
+
+        <div class="button-row">
+          <button id="deleteSelected" type="button">Delete Selected</button>
+          <button id="clearGraph" type="button">Clear Graph</button>
+        </div>
+      </section>
+
+      <section class="topology-preview">
+        <h2>Normalized Topology</h2>
+        <textarea id="jsonPreview" spellcheck="false"></textarea>
+      </section>
+    </aside>
+
+    <section class="graph-panel">
+      <div class="graph-toolbar">
+        <span id="graphSummary">0 nodes, 0 edges</span>
+        <span>Click nodes or edges to select. Drag nodes to arrange.</span>
+      </div>
+      <div id="cy"></div>
+    </section>
+
+    <aside class="panel results-panel">
+      <h2>Results</h2>
+      <div class="metrics">
+        <div class="metric">
+          <span>Latency</span>
+          <strong id="latency">-</strong>
+        </div>
+        <div class="metric">
+          <span>Packet Loss</span>
+          <strong id="packetLoss">-</strong>
+        </div>
+        <div class="metric">
+          <span>Throughput</span>
+          <strong id="throughput">-</strong>
+        </div>
+      </div>
+
+      <section class="result-section">
+        <h3>Packet Paths</h3>
+        <ul id="paths" class="paths"></ul>
+      </section>
+
+      <section class="result-section">
+        <h3>Logs</h3>
+        <pre id="logs"></pre>
+      </section>
+    </aside>
+  </main>
+
+  <div id="status" role="status"></div>
+  <script src="app.js"></script>
+</body>
+</html>
