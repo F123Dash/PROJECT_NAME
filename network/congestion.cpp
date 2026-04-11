@@ -63,7 +63,7 @@ double CongestionManager::getDelay(int node_id, int queue_size) const {
     auto it = node_congestion.find(node_id);
     double congestion_level = (it != node_congestion.end()) ? it->second : 0.0;
     
-    // Delay formula: base_delay + alpha * congestion_level * base_delay
+    // Delay formula: base_delay * (1.0 + alpha * congestion_level)
     // This makes delay increase proportionally with congestion
     double delay = base_delay * (1.0 + congestion_alpha * congestion_level);
     
