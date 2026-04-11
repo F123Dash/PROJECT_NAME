@@ -1,22 +1,18 @@
 #include "../engine/simulator.h"
+#include "../engine/pipeline.h"
 #include <iostream>
 #include <stdexcept>
 
 int main() {
     try {
         Simulator sim;
+        Pipeline pipeline(&sim);
 
-        sim.load_config("config/config.txt");
-        sim.load_topology();
-        sim.init_system();
-        sim.init_traffic();
-
-        sim.run();
-        sim.finalize();
+        pipeline.execute();
 
         return 0;
     } catch (const std::exception& e) {
-        std::cerr << "[ERROR] " << e.what() << std::endl;
+        std::cerr << "[MAIN] Fatal error: " << e.what() << std::endl;
         return 1;
     }
 }
