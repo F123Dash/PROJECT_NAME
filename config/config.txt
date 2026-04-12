@@ -15,8 +15,18 @@ rate=5
 packet_size=512
 
 # Simulation duration
-simulation_time=20
+simulation_time=30
 
 # Link properties
 bandwidth=100
 delay=2
+
+# Real-time control
+real_time_mode=0
+time_scale=1.0
+max_sleep_ms=50
+
+# Packet Retransmission
+enable_retransmission=1
+rtx_timeout_ms=50
+max_retransmissions=3

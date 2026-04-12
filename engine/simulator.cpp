@@ -40,7 +40,13 @@ void Simulator::load_topology() {
         throw std::runtime_error("Unknown topology type: " + topology_type);
     }
     
+    // Initialize link properties from config
+    double bandwidth = config.get_double("bandwidth");
+    double latency = config.get_double("delay");
+    graph->setDefaultLinkProperties(bandwidth, latency);
+    
     std::cout << "[Simulator]   Graph created: " << graph->V << " nodes (type=" << topology_type << ")" << std::endl;
+    std::cout << "[Simulator]   Link properties: bandwidth=" << bandwidth << " Mbps, latency=" << latency << " ms" << std::endl;
 }
 
 // ---------------- PHASE 2: INIT SYSTEM ----------------
@@ -49,6 +55,39 @@ void Simulator::init_system() {
 
     // Set simulation time from config
     simulation_time = config.get_double("simulation_time");
+
+    // ============ LOAD REAL-TIME CONTROL SETTINGS ============
+    extern bool REAL_TIME_MODE;
+    extern double TIME_SCALE;
+    extern int MAX_SLEEP_MS;
+
+    REAL_TIME_MODE = config.get_bool("real_time_mode");
+    TIME_SCALE = config.get_double("time_scale");
+    MAX_SLEEP_MS = config.get_int("max_sleep_ms");
+
+    if (REAL_TIME_MODE) {
+        std::cout << "[Simulator]   Real-time mode ENABLED (time_scale=" << TIME_SCALE << "x)" << std::endl;
+    } else {
+        std::cout << "[Simulator]   Real-time mode disabled (max speed)" << std::endl;
+    }
+    // ===========================================================
+
+    // ============ LOAD RETRANSMISSION SETTINGS ================
+    extern bool ENABLE_RETRANSMISSION;
+    extern double RTX_TIMEOUT_MS;
+    extern int MAX_RETRANSMISSIONS;
+
+    ENABLE_RETRANSMISSION = config.get_bool("enable_retransmission");
+    RTX_TIMEOUT_MS = config.get_double("rtx_timeout_ms");
+    MAX_RETRANSMISSIONS = config.get_int("max_retransmissions");
+
+    if (ENABLE_RETRANSMISSION) {
+        std::cout << "[Simulator]   Retransmission ENABLED (timeout=" << RTX_TIMEOUT_MS 
+                  << "ms, max_retries=" << MAX_RETRANSMISSIONS << ")" << std::endl;
+    } else {
+        std::cout << "[Simulator]   Retransmission disabled" << std::endl;
+    }
+    // ===========================================================
 
     integration = new Integration(graph);
     GLOBAL_INTEGRATION = integration;
