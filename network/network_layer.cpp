@@ -73,6 +73,13 @@ void NetworkLayer::receive(Packet p) {
             p.packet_id, (int)current_time, (int)p.path_history.size()
         );
         p.print_info();
+        
+        // Send ACK back to source
+        extern bool ENABLE_RETRANSMISSION;
+        if (ENABLE_RETRANSMISSION) {
+            sendAck(p.packet_id, p.source);
+        }
+        
         return;
     }
 
@@ -124,29 +131,25 @@ void NetworkLayer::forward(Packet p) {
         ASSERT(next_node != nullptr, "Next hop node is NULL");
         ASSERT(next_node->network_layer != nullptr, "Network layer missing on next node");
         
-        // Schedule packet arrival with travel time
-        schedulePacketArrival(p, next_hop, 10);  // Calculate travel time below
-        
         // Calculate travel time based on link properties
         Graph* graph = GLOBAL_INTEGRATION->graph;
+        double travel_time = 2.0;  // Default fallback
+        
         if (graph) {
             Link* link = graph->getLinkProperties(node->id, next_hop);
             if (link) {
-                double travel_time = link->calculateTravelTime(p.size);
-                schedulePacketArrival(p, next_hop, travel_time);
+                travel_time = link->calculateTravelTime(p.size);
                 if (DEBUG_MODE) {
                     log(LogLevel::DEBUG,
                         "Scheduled packet " + std::to_string(p.packet_id) +
                         " to arrive at node " + std::to_string(next_hop) +
                         " in " + std::to_string(travel_time) + " ms");
                 }
-                return;
             }
         }
         
-        // Fallback: instant delivery if no link properties
-        std::cout << "[NetworkLayer] DELIVERING to node " << next_hop << std::endl;
-        next_node->network_layer->receive(p);
+        // Schedule packet arrival with calculated travel time
+        schedulePacketArrival(p, next_hop, travel_time);
     }
 }
 
@@ -192,7 +195,6 @@ void NetworkLayer::schedulePacketArrival(Packet p, int next_hop, double travel_t
 void NetworkLayer::scheduleRetransmissionTimeout(Packet p, double timeout_ms) {
     extern void schedule_event(Event e);
     extern double current_time;
-    extern Integration* GLOBAL_INTEGRATION;
     
     Event timeout_event;
     timeout_event.time = current_time + (timeout_ms / 1000.0);
@@ -204,7 +206,7 @@ void NetworkLayer::scheduleRetransmissionTimeout(Packet p, double timeout_ms) {
     schedule_event(timeout_event);
 }
 
-// Handle retransmission timeout
+// Handle retransmission timeout - only retransmit if ACK not received
 void NetworkLayer::handleRetransmissionTimeout(Packet p) {
     extern bool ENABLE_RETRANSMISSION;
     extern int MAX_RETRANSMISSIONS;
@@ -212,13 +214,19 @@ void NetworkLayer::handleRetransmissionTimeout(Packet p) {
     
     if (!ENABLE_RETRANSMISSION) return;
     
+    // If ACK was already received, don't retransmit
+    if (acknowledged_packets.count(p.packet_id) > 0) {
+        std::cout << "[NetworkLayer] TIMEOUT for packet " << p.packet_id 
+                  << " but ACK already received - no retransmission needed" << std::endl;
+        return;
+    }
+    
     int& retry_count = retransmit_count[p.packet_id];
     
     if (retry_count >= MAX_RETRANSMISSIONS) {
         // Max retries exceeded - packet definitely lost
         std::cout << "[NetworkLayer] RETRANSMISSION LIMIT EXCEEDED for packet " 
                   << p.packet_id << " (retries=" << retry_count << ")" << std::endl;
-        extern double current_time;
         MetricsManager::getInstance()->onPacketDropped_TTL(p.packet_id, (int)current_time);
         return;
     }
@@ -228,6 +236,61 @@ void NetworkLayer::handleRetransmissionTimeout(Packet p) {
     std::cout << "[NetworkLayer] RETRANSMITTING packet " << p.packet_id 
               << " (attempt " << retry_count << "/" << MAX_RETRANSMISSIONS << ")" << std::endl;
     
-    // Resend the packet
+    // Resend the packet via forward
     forward(p);
+    
+    // Schedule another timeout for this retry
+    extern double RTX_TIMEOUT_MS;
+    scheduleRetransmissionTimeout(p, RTX_TIMEOUT_MS);
+}
+
+// Send ACK back to source node
+void NetworkLayer::sendAck(int packet_id, int source_node) {
+    if (!node) return;
+    
+    std::cout << "[NetworkLayer] SENDING ACK for packet " << packet_id 
+              << " back to source node " << source_node << std::endl;
+    
+    // Create a minimal ACK packet
+    extern double current_time;
+    Packet ack_pkt(
+        packet_id,              // packet_id
+        node->id,               // source (this node sending the ACK)
+        source_node,            // destination (back to originator)
+        64,                     // size (minimal ACK)
+        "TCP",                  // protocol
+        (int)current_time,      // timestamp
+        64                      // ttl
+    );
+    
+    // Schedule ACK arrival at source with minimal travel time
+    extern Integration* GLOBAL_INTEGRATION;
+    
+    if (GLOBAL_INTEGRATION) {
+        Graph* graph = GLOBAL_INTEGRATION->graph;
+        if (graph) {
+            Link* link = graph->getLinkProperties(node->id, source_node);
+            if (link) {
+                double ack_travel_time = link->calculateTravelTime(64);
+                schedulePacketArrival(ack_pkt, source_node, ack_travel_time, true);
+                return;
+            }
+        }
+    }
+    
+    // Fallback: schedule with default travel time
+    schedulePacketArrival(ack_pkt, source_node, 2.0, true);
+}
+
+// Process received ACK - mark packet as successfully acknowledged
+void NetworkLayer::receiveAck(int packet_id) {
+    if (!node) return;
+    
+    std::cout << "[NetworkLayer] RECEIVED ACK for packet " << packet_id << std::endl;
+    
+    // Mark as acknowledged
+    acknowledged_packets.insert(packet_id);
+    
+    // If we scheduled a timeout for this packet, we could cancel it here
+    // (Currently we rely on checking acknowledged_packets in handleRetransmissionTimeout)
 }
