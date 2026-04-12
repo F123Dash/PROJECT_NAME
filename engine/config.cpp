@@ -57,3 +57,9 @@ string Config::get_string(const string& key) {
         throw runtime_error("Missing config: " + key);
     return data[key];
 }
+
+bool Config::get_bool(const string& key) {
+    if (data.find(key) == data.end())
+        throw runtime_error("Missing config: " + key);
+    return get_int(key) != 0;
+}

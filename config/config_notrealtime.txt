@@ -1,0 +1,26 @@
+# Network Simulator Configuration - NO REAL-TIME
+# Format: key=value (one per line)
+
+# Graph topology
+nodes=10
+topology=tree
+
+# Random topology parameters
+probability=0.4
+
+# Traffic configuration
+traffic_type=constant
+rate=5
+packet_size=512
+
+# Simulation duration
+simulation_time=20
+
+# Link properties
+bandwidth=100
+delay=2
+
+# Real-time control (DISABLED)
+real_time_mode=0
+time_scale=1.0
+max_sleep_ms=50

@@ -56,3 +56,36 @@ std::vector<std::pair<int,int>> Graph::get_neighbors(int u) const {
     validate_node(u);
     return adj[u];
 }
+
+// Set link properties (bandwidth in Mbps, latency in ms)
+void Graph::setLinkProperties(int u, int v, double bandwidth, double latency) {
+    validate_node(u);
+    validate_node(v);
+    
+    links[{u, v}] = Link(u, v, bandwidth, latency);
+    links[{v, u}] = Link(v, u, bandwidth, latency);
+}
+
+// Get link properties (returns nullptr if not found)
+Link* Graph::getLinkProperties(int u, int v) {
+    validate_node(u);
+    validate_node(v);
+    
+    auto it = links.find({u, v});
+    if (it != links.end()) {
+        return &(it->second);
+    }
+    return nullptr;
+}
+
+// Set default link properties for all edges
+void Graph::setDefaultLinkProperties(double bandwidth, double latency) {
+    for (int u = 0; u < V; u++) {
+        for (auto& edge : adj[u]) {
+            int v = edge.first;
+            if (u < v) {  // Only set once for undirected edges
+                setLinkProperties(u, v, bandwidth, latency);
+            }
+        }
+    }
+}

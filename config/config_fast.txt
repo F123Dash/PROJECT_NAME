@@ -1,0 +1,15 @@
+# Network Simulator Configuration - FAST REAL-TIME (2x speed)
+nodes=10
+topology=tree
+probability=0.4
+traffic_type=constant
+rate=5
+packet_size=512
+simulation_time=20
+bandwidth=100
+delay=2
+
+# Real-time control at 2x speed (0.5 scale)
+real_time_mode=1
+time_scale=0.5
+max_sleep_ms=50

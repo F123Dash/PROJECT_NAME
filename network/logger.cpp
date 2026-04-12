@@ -61,7 +61,7 @@ void Logger::logPacketCreated(int packet_id, int src, int dst, int timestamp) {
     entry.packet_id = packet_id;
     entry.source_node = src;
     entry.dest_node = dst;
-    entry.event = EventType::PACKET_CREATED;
+    entry.event = LogEventType::PACKET_CREATED;
     entry.level = LogLevel::INFO;
     
     stringstream ss;
@@ -82,7 +82,7 @@ void Logger::logPacketForwarded(int packet_id, int from_node, int to_node, int n
     entry.packet_id = packet_id;
     entry.current_node = from_node;
     entry.next_hop = next_hop;
-    entry.event = EventType::PACKET_FORWARDED;
+    entry.event = LogEventType::PACKET_FORWARDED;
     entry.level = LogLevel::DEBUG;
     
     stringstream ss;
@@ -103,7 +103,7 @@ void Logger::logPacketDelivered(int packet_id, int at_node, const vector<int>& p
     entry.packet_id = packet_id;
     entry.current_node = at_node;
     entry.path_history = path;
-    entry.event = EventType::PACKET_DELIVERED;
+    entry.event = LogEventType::PACKET_DELIVERED;
     entry.level = LogLevel::INFO;
     
     stringstream ss;
@@ -128,7 +128,7 @@ void Logger::logPacketDropped(int packet_id, int at_node, const string& reason, 
     entry.timestamp = timestamp;
     entry.packet_id = packet_id;
     entry.current_node = at_node;
-    entry.event = EventType::PACKET_DROPPED;
+    entry.event = LogEventType::PACKET_DROPPED;
     entry.level = LogLevel::WARNING;
     
     stringstream ss;
@@ -151,7 +151,7 @@ void Logger::logRoutingDecision(int packet_id, int src_node, int dst_node, int n
     entry.dest_node = dst_node;
     entry.current_node = src_node;
     entry.next_hop = next_hop;
-    entry.event = EventType::ROUTING_DECISION;
+    entry.event = LogEventType::ROUTING_DECISION;
     entry.level = LogLevel::DEBUG;
     
     stringstream ss;
@@ -167,7 +167,7 @@ void Logger::logRoutingDecision(int packet_id, int src_node, int dst_node, int n
     }
 }
 
-void Logger::logQueueEvent(int packet_id, EventType event, int node_id, int timestamp) {
+void Logger::logQueueEvent(int packet_id, LogEventType event, int node_id, int timestamp) {
     LogEntry entry;
     entry.timestamp = timestamp;
     entry.packet_id = packet_id;
@@ -176,9 +176,9 @@ void Logger::logQueueEvent(int packet_id, EventType event, int node_id, int time
     entry.level = LogLevel::DEBUG;
     
     stringstream ss;
-    if (event == EventType::QUEUE_ENQUEUE) {
+    if (event == LogEventType::QUEUE_ENQUEUE) {
         ss << "Packet " << packet_id << " enqueued at node " << node_id;
-    } else if (event == EventType::QUEUE_DEQUEUE) {
+    } else if (event == LogEventType::QUEUE_DEQUEUE) {
         ss << "Packet " << packet_id << " dequeued from node " << node_id;
     } else {
         ss << "Queue event for packet " << packet_id << " at node " << node_id;
@@ -260,11 +260,11 @@ void Logger::exportToCSV(const string& filename) {
     
     for (const auto& entry : log_buffer) {
         string event_str;
-        if (entry.event == EventType::PACKET_CREATED) event_str = "CREATED";
-        else if (entry.event == EventType::PACKET_FORWARDED) event_str = "FORWARDED";
-        else if (entry.event == EventType::PACKET_DELIVERED) event_str = "DELIVERED";
-        else if (entry.event == EventType::PACKET_DROPPED) event_str = "DROPPED";
-        else if (entry.event == EventType::ROUTING_DECISION) event_str = "ROUTING";
+        if (entry.event == LogEventType::PACKET_CREATED) event_str = "CREATED";
+        else if (entry.event == LogEventType::PACKET_FORWARDED) event_str = "FORWARDED";
+        else if (entry.event == LogEventType::PACKET_DELIVERED) event_str = "DELIVERED";
+        else if (entry.event == LogEventType::PACKET_DROPPED) event_str = "DROPPED";
+        else if (entry.event == LogEventType::ROUTING_DECISION) event_str = "ROUTING";
         else event_str = "OTHER";
         
         file << entry.timestamp << ","

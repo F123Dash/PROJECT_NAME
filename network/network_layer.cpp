@@ -151,7 +151,7 @@ void NetworkLayer::forward(Packet p) {
 }
 
 // Schedule packet arrival (delayed delivery based on link properties)
-void NetworkLayer::schedulePacketArrival(Packet p, int next_hop, double travel_time) {
+void NetworkLayer::schedulePacketArrival(Packet p, int next_hop, double travel_time, bool is_ack) {
     extern void schedule_event(Event e);
     extern double current_time;
     extern Integration* GLOBAL_INTEGRATION;
@@ -159,12 +159,16 @@ void NetworkLayer::schedulePacketArrival(Packet p, int next_hop, double travel_t
     // Create a callback that will deliver the packet
     Event e;
     e.time = current_time + travel_time;
-    e.type = "PACKET_ARRIVAL";
-    e.callback = [p, next_hop]() {
+    e.type = is_ack ? "ACK_ARRIVAL" : "PACKET_ARRIVAL";
+    e.callback = [p, next_hop, is_ack]() {
         if (GLOBAL_INTEGRATION) {
             Node* dest_node = GLOBAL_INTEGRATION->get_node(next_hop);
             if (dest_node && dest_node->network_layer) {
-                dest_node->network_layer->receive(p);
+                if (is_ack) {
+                    dest_node->network_layer->receiveAck(p.packet_id);
+                } else {
+                    dest_node->network_layer->receive(p);
+                }
             }
         }
     };
@@ -172,11 +176,15 @@ void NetworkLayer::schedulePacketArrival(Packet p, int next_hop, double travel_t
     // Use the proper global schedule_event function
     schedule_event(e);
     
-    // Schedule retransmission timeout
-    extern bool ENABLE_RETRANSMISSION;
-    extern double RTX_TIMEOUT_MS;
-    if (ENABLE_RETRANSMISSION) {
-        scheduleRetransmissionTimeout(p, RTX_TIMEOUT_MS);
+    // Only schedule retransmission timeout for data packets (not ACKs), 
+    // and only on the sending side (when traveling towards destination)
+    if (!is_ack) {
+        extern bool ENABLE_RETRANSMISSION;
+        extern double RTX_TIMEOUT_MS;
+        if (ENABLE_RETRANSMISSION && p.source == node->id) {
+            // Only sender should schedule timeouts
+            scheduleRetransmissionTimeout(p, RTX_TIMEOUT_MS);
+        }
     }
 }
 

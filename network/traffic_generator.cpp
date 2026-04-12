@@ -1,19 +1,14 @@
 #include "traffic_generator.h"
 #include "../engine/node.h"
+#include "../engine/event_queue.h"
 #include "../network/metrics.h"
 #include "../network/logger.h"
 #include "../network/debug.h"
 #include <random>
 #include <iostream>
 
-// Global event scheduler (must be provided by simulation engine)
-extern std::vector<Event> event_queue;
-extern double current_simulation_time;
-
-void schedule_event(const Event& e) {
-    event_queue.push_back(e);
-    std::push_heap(event_queue.begin(), event_queue.end(), std::greater<Event>());
-}
+// Use the global schedule_event from event_queue.cpp
+extern void schedule_event(Event e);
 
 void TrafficGenerator::add_flow(const Flow& f) {
     flows.push_back(f);

@@ -13,6 +13,7 @@ public:
     int get_int(const std::string& key);
     double get_double(const std::string& key);
     std::string get_string(const std::string& key);
+    bool get_bool(const std::string& key);
 };
 
 #endif

@@ -13,8 +13,8 @@ enum class LogLevel {
     ERROR
 };
 
-// Event types for categorization
-enum class EventType {
+// Event types for logging (separate from simulation events)
+enum class LogEventType {
     PACKET_CREATED,
     PACKET_FORWARDED,
     PACKET_DELIVERED,
@@ -33,14 +33,14 @@ struct LogEntry {
     int dest_node;
     int current_node;
     int next_hop;
-    EventType event;
+    LogEventType event;
     LogLevel level;
     string message;
     vector<int> path_history;  // packet path at time of log
     
     LogEntry()
         : timestamp(0), packet_id(-1), source_node(-1), dest_node(-1),
-          current_node(-1), next_hop(-1), event(EventType::PACKET_CREATED),
+          current_node(-1), next_hop(-1), event(LogEventType::PACKET_CREATED),
           level(LogLevel::INFO), message(""), path_history() {}
 };
 

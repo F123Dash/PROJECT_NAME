@@ -4,9 +4,10 @@
 #include <vector>
 
 #include "../graphs/graphs.h"
-#include "mst.h"
-#include "metrics.h"
-#include "shortest_path.h"
+#include "../algorithms/shortest_path.h"
+#include "../algorithms/mst.h"
+#include "../network/metrics.h"
+#include "../algorithms/metrics.h"
 
 using namespace std;
 

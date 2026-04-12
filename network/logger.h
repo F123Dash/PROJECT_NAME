@@ -40,7 +40,7 @@ public:
     void logPacketDelivered(int packet_id, int at_node, const vector<int>& path, int timestamp);
     void logPacketDropped(int packet_id, int at_node, const string& reason, int timestamp);
     void logRoutingDecision(int packet_id, int src_node, int dst_node, int next_hop, int timestamp);
-    void logQueueEvent(int packet_id, EventType event, int node_id, int timestamp);
+    void logQueueEvent(int packet_id, LogEventType event, int node_id, int timestamp);
     
     // Trace functions
     void recordHop(int packet_id, int node_id);
