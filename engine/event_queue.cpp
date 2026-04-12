@@ -44,7 +44,7 @@ void run_event_loop(double end_time) {
         if (e.time > end_time)
             break;
 
-        // ================ REAL-TIME SYNCHRONIZATION ================
+        //   REAL-TIME SYNCHRONIZATION  
         if (REAL_TIME_MODE) {
             double sim_elapsed = e.time - sim_start;
 
@@ -65,8 +65,6 @@ void run_event_loop(double end_time) {
                 std::this_thread::sleep_for(sleep_time);
             }
         }
-        // ============================================================
-
         current_time = e.time;
 
         // Execute the event callback

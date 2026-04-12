@@ -1,7 +1,7 @@
 #ifndef EVENT_TYPES_H
 #define EVENT_TYPES_H
 
-// 🔹 Enum for all event types
+// Enum for all event types
 enum class EventType {
     PACKET_GENERATE,
     PACKET_SEND,

@@ -1,5 +1,6 @@
 #include "integration.h"
 #include "../algorithms/shortest_path.h"
+#include "../graphs/graph_analysis.h"
 #include "../network/logger.h"
 #include "../network/debug.h"
 #include <iostream>
@@ -97,6 +98,34 @@ void Integration::build_routing_tables() {
             cout << dest << "->" << nodes[i]->routing_table[dest] << " ";
         }
         cout << endl;
+    }
+    
+    // Analyze topology using graph_analysis functions
+    cout << "[Integration] Topology Analysis:" << endl;
+    cout << "  Nodes: " << graph->V << endl;
+    
+    // Count edges
+    int edge_count = 0;
+    for (int i = 0; i < graph->V; i++) {
+        edge_count += graph->adj[i].size();
+    }
+    edge_count /= 2;  // Undirected graph, so divide by 2
+    cout << "  Edges: " << edge_count << endl;
+    cout << "  Average degree: " << average_degree(*graph) << endl;
+    
+    // Sample path lengths from source node 0
+    if (graph->V > 0) {
+        vector<int> distances = bfs(*graph, 0);
+        int max_dist = 0;
+        int reachable = 0;
+        for (int d : distances) {
+            if (d != -1) {
+                reachable++;
+                max_dist = max(max_dist, d);
+            }
+        }
+        cout << "  Network diameter (from node 0): " << max_dist << " hops" << endl;
+        cout << "  Reachable nodes from 0: " << reachable << "/" << graph->V << endl;
     }
 }
 

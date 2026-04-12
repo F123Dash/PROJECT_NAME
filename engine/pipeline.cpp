@@ -18,7 +18,7 @@ void Pipeline::execute() {
         // ============================================================
         std::cout << "[1/7] Loading configuration..." << std::endl;
         sim->load_config("config/config.txt");
-        std::cout << "      ✓ Configuration loaded\n" << std::endl;
+        std::cout << "         Configuration loaded\n" << std::endl;
 
         // ============================================================
         // STEP 2: BUILD GRAPH
@@ -28,7 +28,7 @@ void Pipeline::execute() {
         if (!sim->graph) {
             throw std::runtime_error("Graph initialization failed");
         }
-        std::cout << "      ✓ Graph created (" << sim->graph->V << " nodes)\n" << std::endl;
+        std::cout << "         Graph created (" << sim->graph->V << " nodes)\n" << std::endl;
 
         // ============================================================
         // STEP 3: INITIALIZE SYSTEM (Nodes + Network Layers)
@@ -38,7 +38,7 @@ void Pipeline::execute() {
         if (!sim->integration) {
             throw std::runtime_error("Integration object not initialized");
         }
-        std::cout << "      ✓ System initialized\n" << std::endl;
+        std::cout << "         System initialized\n" << std::endl;
 
         // ============================================================
         // STEP 4: VERIFY ROUTING TABLES
@@ -52,28 +52,28 @@ void Pipeline::execute() {
                 throw std::runtime_error("Node " + std::to_string(i) + " has no routing table");
             }
         }
-        std::cout << "      ✓ All routing tables verified\n" << std::endl;
+        std::cout << "         All routing tables verified\n" << std::endl;
 
         // ============================================================
         // STEP 5: INITIALIZE TRAFFIC
         // ============================================================
         std::cout << "[5/7] Initializing traffic..." << std::endl;
         sim->init_traffic();
-        std::cout << "      ✓ Traffic flows scheduled\n" << std::endl;
+        std::cout << "         Traffic flows scheduled\n" << std::endl;
 
         // ============================================================
         // STEP 6: RUN SIMULATION
         // ============================================================
         std::cout << "[6/7] Running simulation..." << std::endl;
         sim->run();
-        std::cout << "      ✓ Simulation complete\n" << std::endl;
+        std::cout << "         Simulation complete\n" << std::endl;
 
         // ============================================================
         // STEP 7: FINALIZE & COLLECT METRICS
         // ============================================================
         std::cout << "[7/7] Collecting and finalizing metrics..." << std::endl;
         sim->finalize();
-        std::cout << "      ✓ Metrics finalized\n" << std::endl;
+        std::cout << "         Metrics finalized\n" << std::endl;
 
         std::cout << "\n===== EXECUTION PIPELINE SUCCESS =====" << std::endl;
 

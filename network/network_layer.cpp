@@ -11,16 +11,31 @@
 #include <iostream>
 #include <algorithm>
 
+// Get logger instance for event tracking
+static Logger* event_logger = nullptr;
+
 NetworkLayer::NetworkLayer(Node* n) : node(n) {
     ASSERT(n != nullptr, "Node pointer is NULL in NetworkLayer");
+    // Initialize logger on first use
+    if (!event_logger) {
+        event_logger = Logger::getInstance();
+    }
 }
 
 // Called by Transport Layer to send a packet
 void NetworkLayer::send(Packet p) {
+    extern double current_time;
+    
     std::cout << "[NetworkLayer] SEND: src=" << p.source
               << " dst=" << p.destination
               << " ttl=" << p.ttl
               << " size=" << p.size << std::endl;
+    
+    // Log packet send event
+    if (event_logger) {
+        event_logger->logPacketCreated(p.packet_id, p.source, p.destination, (int)current_time);
+    }
+    
     forward(p);
 }
 
@@ -57,6 +72,12 @@ void NetworkLayer::receive(Packet p) {
         std::cout << "[NetworkLayer] TTL EXPIRED! Dropping packet at node " << node->id << std::endl;
         extern double current_time;
         MetricsManager::getInstance()->onPacketDropped_TTL(p.packet_id, (int)current_time);
+        
+        // Log drop event
+        if (event_logger) {
+            event_logger->logPacketDropped(p.packet_id, node->id, "TTL_EXPIRED", (int)current_time);
+        }
+        
         return;
     }
 
@@ -72,6 +93,12 @@ void NetworkLayer::receive(Packet p) {
         MetricsManager::getInstance()->onPacketDelivered(
             p.packet_id, (int)current_time, (int)p.path_history.size()
         );
+        
+        // Log delivery event
+        if (event_logger) {
+            event_logger->logPacketDelivered(p.packet_id, node->id, p.path_history, (int)current_time);
+        }
+        
         p.print_info();
         
         // Send ACK back to source
@@ -121,6 +148,12 @@ void NetworkLayer::forward(Packet p) {
                   << " at node " << node->id << ". Dropping packet." << std::endl;
         extern double current_time;
         MetricsManager::getInstance()->onPacketDropped_NoRoute(p.packet_id, (int)current_time);
+        
+        // Log drop event
+        if (event_logger) {
+            event_logger->logPacketDropped(p.packet_id, node->id, "NO_ROUTE", (int)current_time);
+        }
+        
         return;
     }
 
@@ -150,6 +183,12 @@ void NetworkLayer::forward(Packet p) {
         
         // Schedule packet arrival with calculated travel time
         schedulePacketArrival(p, next_hop, travel_time);
+        
+        // Log forwarding decision
+        extern double current_time;
+        if (event_logger) {
+            event_logger->logRoutingDecision(p.packet_id, node->id, p.destination, next_hop, (int)current_time);
+        }
     }
 }
 
@@ -248,8 +287,15 @@ void NetworkLayer::handleRetransmissionTimeout(Packet p) {
 void NetworkLayer::sendAck(int packet_id, int source_node) {
     if (!node) return;
     
+    extern double current_time;
+    
     std::cout << "[NetworkLayer] SENDING ACK for packet " << packet_id 
               << " back to source node " << source_node << std::endl;
+    
+    // Log ACK event
+    if (event_logger) {
+        event_logger->logRoutingDecision(packet_id, node->id, source_node, source_node, (int)current_time);
+    }
     
     // Create a minimal ACK packet
     extern double current_time;
@@ -286,7 +332,14 @@ void NetworkLayer::sendAck(int packet_id, int source_node) {
 void NetworkLayer::receiveAck(int packet_id) {
     if (!node) return;
     
+    extern double current_time;
+    
     std::cout << "[NetworkLayer] RECEIVED ACK for packet " << packet_id << std::endl;
+    
+    // Log ACK receipt
+    if (event_logger) {
+        event_logger->recordHop(packet_id, node->id);
+    }
     
     // Mark as acknowledged
     acknowledged_packets.insert(packet_id);

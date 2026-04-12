@@ -2,6 +2,7 @@
 #include "../graphs/graph_generator.h"
 #include "event.h"
 #include "../network/metrics.h"
+#include "../network/logger.h"
 #include <iostream>
 #include <map>
 
@@ -105,6 +106,10 @@ void Simulator::init_system() {
     // Initialize metrics tracking
     MetricsManager::getInstance()->initialize(0, "");
     std::cout << "[Simulator]   Metrics engine initialized" << std::endl;
+    
+    // Initialize logging system
+    Logger::getInstance()->initialize("simulation_events.log", true);
+    std::cout << "[Simulator]   Event logging initialized" << std::endl;
 }
 
 // ---------------- PHASE 3: INIT TRAFFIC ----------------
@@ -158,6 +163,16 @@ void Simulator::finalize() {
     
     // Finalize metrics
     MetricsManager::getInstance()->finalize((int)simulation_time);
+    
+    // Finalize and export logs
+    Logger* logger = Logger::getInstance();
+    if (logger) {
+        logger->finalize();
+        // Export event logs for analysis
+        logger->exportToFile();
+        logger->exportToCSV("simulation_events.csv");
+        std::cout << "[Simulator]   Event logs exported" << std::endl;
+    }
     
     std::cout << "\n--- Metrics ---" << std::endl;
 
