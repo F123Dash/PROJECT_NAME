@@ -5,10 +5,38 @@
 #include "../network/logger.h"
 #include <iostream>
 #include <map>
+#include <fstream>
+#include <sstream>
 
 extern double current_time;
 extern void run_event_loop(double end_time);
 extern void print_metrics();
+
+// Custom stream buffer that writes to both console and file
+class TeeStreamBuffer : public std::streambuf {
+private:
+    std::streambuf* stream1;
+    std::streambuf* stream2;
+    
+public:
+    TeeStreamBuffer(std::streambuf* sb1, std::streambuf* sb2) 
+        : stream1(sb1), stream2(sb2) {}
+    
+    int overflow(int c) override {
+        if (stream1->sputc(c) == EOF) return EOF;
+        return stream2->sputc(c);
+    }
+    
+    int sync() override {
+        int r1 = stream1->pubsync();
+        int r2 = stream2->pubsync();
+        return (r1 == 0 && r2 == 0) ? 0 : -1;
+    }
+};
+
+static std::ofstream log_file;
+static TeeStreamBuffer* tee_buf = nullptr;
+static std::streambuf* original_cout_buf = nullptr;
 
 Simulator::Simulator() {
     graph = nullptr;
@@ -18,6 +46,14 @@ Simulator::Simulator() {
 
 // ---------------- PHASE 0: LOAD CONFIG ----------------
 void Simulator::load_config(const std::string& filename) {
+    // Set up tee-like output to both console and file
+    log_file.open("simulation_console.log", std::ios::out | std::ios::trunc);
+    if (log_file.is_open()) {
+        original_cout_buf = std::cout.rdbuf();
+        tee_buf = new TeeStreamBuffer(original_cout_buf, log_file.rdbuf());
+        std::cout.rdbuf(tee_buf);
+    }
+    
     std::cout << "\n[Simulator] Phase 0: Loading configuration..." << std::endl;
     if (!config.load(filename)) {
         throw std::runtime_error("Failed to load config file: " + filename);
@@ -179,4 +215,14 @@ void Simulator::finalize() {
     print_metrics();
 
     std::cout << "\n[Simulator] Done." << std::endl;
+    
+    // Restore original cout and close log file
+    if (tee_buf) {
+        std::cout.rdbuf(original_cout_buf);
+        delete tee_buf;
+        tee_buf = nullptr;
+    }
+    if (log_file.is_open()) {
+        log_file.close();
+    }
 }

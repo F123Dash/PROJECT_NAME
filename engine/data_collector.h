@@ -22,6 +22,10 @@ public:
     void record_metrics(const GlobalMetrics& gm);
 
     void log_event(const std::string& msg);
+    
+    void log_step(const std::string& step, const std::string& description);
+    
+    void log_error(const std::string& error_msg);
 };
 
 #endif
