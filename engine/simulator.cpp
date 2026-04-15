@@ -3,6 +3,7 @@
 #include "event.h"
 #include "../network/metrics.h"
 #include "../network/logger.h"
+#include "../performance/profiler.h"
 #include <iostream>
 #include <map>
 #include <fstream>
@@ -63,6 +64,8 @@ void Simulator::load_config(const std::string& filename) {
 
 // ---------------- PHASE 1: LOAD GRAPH ----------------
 void Simulator::load_topology() {
+    ScopedTimer timer("load_topology");
+    
     std::cout << "\n[Simulator] Phase 1: Loading topology..." << std::endl;
     
     int num_nodes = config.get_int("nodes");
@@ -88,6 +91,8 @@ void Simulator::load_topology() {
 
 // ---------------- PHASE 2: INIT SYSTEM ----------------
 void Simulator::init_system() {
+    ScopedTimer timer("init_system");
+    
     std::cout << "\n[Simulator] Phase 2: Initializing system..." << std::endl;
 
     // Set simulation time from config
@@ -188,6 +193,8 @@ void Simulator::init_traffic() {
 
 // ---------------- PHASE 4: RUN ----------------
 void Simulator::run() {
+    ScopedTimer timer("simulation_event_loop");
+    
     std::cout << "\n[Simulator] Phase 4: Running simulation (t=0 to t=" << simulation_time << ")..." << std::endl;
     run_event_loop(simulation_time);
     std::cout << "[Simulator]   Simulation finished" << std::endl;
@@ -214,6 +221,14 @@ void Simulator::finalize() {
 
     print_metrics();
 
+    // Generate performance profiling report
+    Profiler* profiler = Profiler::getInstance();
+    if (Profiler::isEnabled() && profiler) {
+        std::cout << "\n";
+        profiler->report(std::cout);
+        profiler->exportCSV("profiler_report.csv");
+    }
+
     std::cout << "\n[Simulator] Done." << std::endl;
     
     // Restore original cout and close log file
@@ -225,4 +240,7 @@ void Simulator::finalize() {
     if (log_file.is_open()) {
         log_file.close();
     }
+    
+    // Cleanup profiler
+    Profiler::destroyInstance();
 }

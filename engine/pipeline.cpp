@@ -1,5 +1,6 @@
 #include "pipeline.h"
 #include "../network/metrics.h"
+#include "../performance/profiler.h"
 #include <iostream>
 #include <stdexcept>
 
@@ -29,6 +30,15 @@ void Pipeline::execute() {
         sim->load_config("config/config.txt");
         std::cout << "         Configuration loaded\n" << std::endl;
         if (data_collector) data_collector->log_step("[1/7]", "Configuration loaded successfully");
+        
+        // Enable profiling based on config
+        if (sim->config.get_bool("enable_profiling")) {
+            Profiler::enable();
+            std::cout << "[PROFILER] Performance profiling ENABLED\n" << std::endl;
+        } else {
+            Profiler::disable();
+            std::cout << "[PROFILER] Performance profiling disabled\n" << std::endl;
+        }
 
         // ============================================================
         // STEP 2: BUILD GRAPH
