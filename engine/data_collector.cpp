@@ -95,7 +95,10 @@ void DataCollector::record_metrics(const GlobalMetrics& gm) {
     log_file << "  Avg Hops:           " << gm.avg_hops << "\n";
     log_file << string(70, '-') << "\n";
     log_file.flush();
-}
+    latencies.push_back(gm.avg_latency);
+    throughputs.push_back(gm.throughput);
+    loss_rates.push_back(gm.loss_rate);
+    }
 
 void DataCollector::log_event(const string& msg) {
     log_file << "[EVENT] " << msg << "\n";
@@ -111,3 +114,22 @@ void DataCollector::log_error(const string& error_msg) {
     log_file << "[ERROR] " << error_msg << "\n";
     log_file.flush();
 }
+
+void DataCollector::reset() {
+    latencies.clear();
+    throughputs.clear();
+    loss_rates.clear();
+}
+
+const vector<double>& DataCollector::get_latencies() const {
+    return latencies;
+}
+
+const vector<double>& DataCollector::get_throughputs() const {
+    return throughputs;
+}
+
+const vector<double>& DataCollector::get_loss_rates() const {
+    return loss_rates;
+}
+
