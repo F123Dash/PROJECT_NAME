@@ -3,6 +3,7 @@
 #include "../graphs/graph_analysis.h"
 #include "../network/logger.h"
 #include "../network/debug.h"
+#include "../performance/profiler.h"
 #include <iostream>
 #include <climits>
 
@@ -27,6 +28,8 @@ Integration::~Integration() {
 
 // Step 1: Create Nodes
 void Integration::init_nodes() {
+    ScopedTimer timer("init_nodes");
+    
     int n = graph->V;
     nodes.resize(n);
 
@@ -42,6 +45,8 @@ void Integration::init_nodes() {
 
 // Step 2: Build Routing Tables using Dijkstra from shortest_path.h
 void Integration::build_routing_tables() {
+    ScopedTimer timer("build_routing_tables");
+    
     int n = graph->V;
 
     cout << "[Integration] Building routing tables using Dijkstra..." << endl;
@@ -50,11 +55,17 @@ void Integration::build_routing_tables() {
         vector<int> dist(n, INT_MAX);
         vector<int> parent(n, -1);
 
+        // Pre-allocate (optimization)
+        dist.reserve(n);
+        parent.reserve(n);
+
         // Run Dijkstra from node i
         dijkstra(*graph, i, dist, parent);
 
         // Build routing table: for each destination, store next hop
         vector<int> routing(n, -1);
+        routing.reserve(n);
+        
         for (int dest = 0; dest < n; dest++) {
             if (dest == i) {
                 routing[dest] = i;  // routing to self is self
@@ -131,6 +142,8 @@ void Integration::build_routing_tables() {
 
 // Step 3: Attach Network + Transport
 void Integration::attach_layers(bool use_tcp) {
+    ScopedTimer timer("attach_layers");
+    
     cout << "[Integration] Attaching Network and Transport layers..." << endl;
 
     for (auto node : nodes) {

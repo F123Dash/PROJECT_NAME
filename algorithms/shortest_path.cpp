@@ -1,4 +1,5 @@
 #include "shortest_path.h"
+#include "../performance/profiler.h"
 #include <queue>
 #include <climits>
 
@@ -7,7 +8,14 @@ using namespace std;
 const int INF = INT_MAX;
 
 void dijkstra(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
+    ScopedTimer timer("dijkstra");
+    
     int n = g.V;
+    
+    // Pre-allocate vectors (optimization: avoid repeated reallocations)
+    dist.reserve(n);
+    parent.reserve(n);
+    
     dist.assign(n, INF);
     parent.assign(n, -1);
 
@@ -22,7 +30,9 @@ void dijkstra(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
 
         if (d > dist[u]) continue;
 
-        for (auto [v, w] : g.get_neighbors(u)) {
+        // Use const reference to avoid copies
+        const auto& neighbors = g.get_neighbors(u);
+        for (const auto& [v, w] : neighbors) {
             if (dist[u] + w < dist[v]) {
                 dist[v] = dist[u] + w;
                 parent[v] = u;
@@ -33,6 +43,8 @@ void dijkstra(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
 }
 
 bool bellmanFord(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
+    ScopedTimer timer("bellman_ford");
+    
     int n = g.V;
     dist.assign(n, INF);
     parent.assign(n, -1);
@@ -41,7 +53,8 @@ bool bellmanFord(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
 
     for (int i = 0; i < n - 1; i++) {
         for (int u = 0; u < n; u++) {
-            for (auto [v, w] : g.get_neighbors(u)) {
+            const auto& neighbors = g.get_neighbors(u);
+            for (const auto& [v, w] : neighbors) {
                 if (dist[u] != INF && dist[u] + w < dist[v]) {
                     dist[v] = dist[u] + w;
                     parent[v] = u;
@@ -51,7 +64,8 @@ bool bellmanFord(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
     }
 
     for (int u = 0; u < n; u++) {
-        for (auto [v, w] : g.get_neighbors(u)) {
+        const auto& neighbors = g.get_neighbors(u);
+        for (const auto& [v, w] : neighbors) {
             if (dist[u] != INF && dist[u] + w < dist[v]) {
                 return false;
             }
@@ -60,4 +74,3 @@ bool bellmanFord(Graph &g, int source, vector<int> &dist, vector<int> &parent) {
 
     return true;
 }
- 
