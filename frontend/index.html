@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Network Simulator</title>
+    <link rel="stylesheet" href="style.css">
+  </head>
+  <body>
+    <main class="shell">
+      <section class="intro">
+        <div>
+          <p class="eyebrow">Network simulator</p>
+          <h1>Build a topology, send packets, compare algorithms.</h1>
+        </div>
+        <button id="runBtn" class="primary">Run simulation</button>
+      </section>
+
+      <section class="workspace">
+        <div class="panel controls">
+          <h2>Topology</h2>
+          <label>
+            Type
+            <select id="topology">
+              <option value="custom">Custom</option>
+              <option value="random">Random</option>
+              <option value="tree">Tree</option>
+              <option value="grid">Grid</option>
+            </select>
+          </label>
+
+          <div class="grid-controls">
+            <label>
+              Random p
+              <input id="probability" type="number" min="0" max="1" step="0.05" value="0.55">
+            </label>
+            <label>
+              Grid rows
+              <input id="rows" type="number" min="1" value="2">
+            </label>
+            <label>
+              Grid cols
+              <input id="cols" type="number" min="1" value="3">
+            </label>
+          </div>
+
+          <h2>Packets</h2>
+          <div class="grid-controls">
+            <label>
+              Source
+              <input id="source" type="number" min="0" value="0">
+            </label>
+            <label>
+              Destination
+              <input id="destination" type="number" min="0" value="3">
+            </label>
+            <label>
+              Packets
+              <input id="packets" type="number" min="0" value="12">
+            </label>
+            <label>
+              Packet size
+              <input id="packetSize" type="number" min="1" value="512">
+            </label>
+            <label>
+              Bandwidth
+              <input id="bandwidth" type="number" min="0.001" step="0.1" value="10">
+            </label>
+            <label>
+              Latency
+              <input id="latency" type="number" min="0" step="0.1" value="1">
+            </label>
+          </div>
+
+          <h2>Nodes</h2>
+          <div class="row-actions">
+            <button id="addNode" type="button">Add node</button>
+          </div>
+          <div id="nodes" class="list"></div>
+
+          <h2>Links</h2>
+          <div class="row-actions">
+            <button id="addEdge" type="button">Add link</button>
+          </div>
+          <div id="edges" class="list"></div>
+        </div>
+
+        <div class="visual-area">
+          <section class="graph-band">
+            <div class="band-head">
+              <h2>Graph</h2>
+              <p id="status">Ready.</p>
+            </div>
+            <svg id="graphSvg" role="img" aria-label="network graph"></svg>
+          </section>
+
+          <section class="results">
+            <div class="metric-grid" id="metrics"></div>
+            <div class="split">
+              <div>
+                <h2>Algorithm Time</h2>
+                <div id="timings" class="table"></div>
+              </div>
+              <div>
+                <h2>Run Statistics</h2>
+                <div id="stats" class="table"></div>
+              </div>
+            </div>
+            <div>
+              <h2>Debug File</h2>
+              <pre id="debug">Run the simulation to see debug output.</pre>
+            </div>
+          </section>
+        </div>
+      </section>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>
