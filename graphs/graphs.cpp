@@ -51,8 +51,14 @@ void Graph::remove_edge(int u, int v) {
     }
 }
 
-// Get neighbors of u
-std::vector<std::pair<int,int>> Graph::get_neighbors(int u) const {
+// Get neighbors of u (const reference - preferred to avoid copies)
+const std::vector<std::pair<int,int>>& Graph::get_neighbors(int u) const {
+    validate_node(u);
+    return adj[u];
+}
+
+// Legacy copy method (deprecated - use const reference version)
+std::vector<std::pair<int,int>> Graph::get_neighbors_copy(int u) const {
     validate_node(u);
     return adj[u];
 }

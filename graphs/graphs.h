@@ -23,7 +23,12 @@ public:
   // Operations
   void add_edge(int u, int v, int w);
   void remove_edge(int u, int v);
-  std::vector<std::pair<int, int>> get_neighbors(int u) const;
+  
+  // Return const reference to avoid expensive copies during traversal
+  const std::vector<std::pair<int, int>>& get_neighbors(int u) const;
+  
+  // Legacy method (deprecated - use const reference version)
+  std::vector<std::pair<int, int>> get_neighbors_copy(int u) const;
   
   // Link property operations
   void setLinkProperties(int u, int v, double bandwidth, double latency);
