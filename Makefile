@@ -53,7 +53,7 @@ PERFORMANCE_SRC := performance/profiler.cpp \
 
 # Backend runner sources (web API binary)
 # Note: Uses simulation_runner instead of main, but all the same dependencies
-BACKEND_RUNNER_MAIN := backend/simulation_runner.cpp
+BACKEND_RUNNER_MAIN := src/backend_runner.cpp
 BACKEND_ENGINE_SRC  := engine/config.cpp \
                        engine/data_collector.cpp \
                        engine/event_queue.cpp \

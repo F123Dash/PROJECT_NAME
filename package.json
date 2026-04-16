@@ -1,0 +1,36 @@
+{
+  "name": "project_name",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "kill-port 3000 5173 5174 5175 >/dev/null 2>&1 || true && concurrently -k \"node backend/server.js\" \"npm --prefix frontend run dev\"",
+    "dev:backend": "node backend/server.js",
+    "dev:frontend": "npm --prefix frontend run dev"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/F123Dash/PROJECT_NAME.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/F123Dash/PROJECT_NAME/issues"
+  },
+  "homepage": "https://github.com/F123Dash/PROJECT_NAME#readme",
+  "dependencies": {
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.6",
+    "express": "^5.2.1"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1",
+    "kill-port": "^2.0.1"
+  }
+}
