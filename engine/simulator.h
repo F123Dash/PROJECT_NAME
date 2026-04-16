@@ -21,6 +21,7 @@ public:
 
     void load_config(const std::string& filename);
     void load_topology();
+    void load_topology_from_file(const std::string& filename);
     void init_system();
     void init_traffic();
 

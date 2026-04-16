@@ -3,47 +3,76 @@
 #include "../engine/data_collector.h"
 #include "../engine/statistics.h"
 #include "../network/metrics_types.h"
+#include "../performance/profiler.h"
 #include <iostream>
 #include <stdexcept>
+#include <cstring>
+#include <iomanip>
 
-int main() {
+// ============================================================================
+// JSON Output Helper
+// ============================================================================
+void printJSON(const std::vector<double>& latencies,
+               const std::vector<double>& throughputs,
+               const std::vector<double>& losses) {
+    
+    std::cout << "{\n";
+    std::cout << "  \"ok\": true,\n";
+    std::cout << "  \"statistics\": {\n";
+    std::cout << "    \"latency\": {\n";
+    std::cout << "      \"avg\": " << std::fixed << std::setprecision(4) 
+              << Statistics::average(latencies) << ",\n";
+    std::cout << "      \"var\": " << Statistics::variance(latencies) << ",\n";
+    std::cout << "      \"min\": " << Statistics::minimum(latencies) << ",\n";
+    std::cout << "      \"max\": " << Statistics::maximum(latencies) << "\n";
+    std::cout << "    },\n";
+    
+    std::cout << "    \"throughput\": {\n";
+    std::cout << "      \"avg\": " << Statistics::average(throughputs) << ",\n";
+    std::cout << "      \"var\": " << Statistics::variance(throughputs) << ",\n";
+    std::cout << "      \"min\": " << Statistics::minimum(throughputs) << ",\n";
+    std::cout << "      \"max\": " << Statistics::maximum(throughputs) << "\n";
+    std::cout << "    },\n";
+    
+    std::cout << "    \"loss\": {\n";
+    std::cout << "      \"avg\": " << Statistics::average(losses) << ",\n";
+    std::cout << "      \"var\": " << Statistics::variance(losses) << ",\n";
+    std::cout << "      \"min\": " << Statistics::minimum(losses) << ",\n";
+    std::cout << "      \"max\": " << Statistics::maximum(losses) << "\n";
+    std::cout << "    }\n";
+    std::cout << "  },\n";
+    std::cout << "  \"runs\": " << latencies.size() << "\n";
+    std::cout << "}\n";
+}
+
+// ============================================================================
+// MAIN
+// ============================================================================
+int main(int argc, char* argv[]) {
     try {
-        // Initialize data collection
-        int runs = 5;
-        DataCollector data_collector("data_metrics.csv", "data_collection.log");
-        for(int i = 1;i<=runs;i++)
-        {
-            std::cout << "\n===== RUN " << i << " =====\n";
-            Simulator sim;
-            Pipeline pipeline(&sim, &data_collector);
+        std::string config_file = "config/config.txt";
+        std::string topo_file = "";
 
-            pipeline.execute();
+        // Parse arguments: simulator [config_file] [topology_file]
+        if (argc > 1) {
+            config_file = argv[1];
+        }
+        if (argc > 2) {
+            topo_file = argv[2];
+        }
+
+        Simulator sim;
+        sim.load_config(config_file);
+        if (!topo_file.empty()) {
+            sim.load_topology_from_file(topo_file);
+        } else {
+            sim.load_topology();
         }
         
-
-        const std::vector<double>& latencies = data_collector.get_latencies();
-        const std::vector<double>& throughputs = data_collector.get_throughputs();
-        const std::vector<double>& losses = data_collector.get_loss_rates();
-
-        std::cout << "\n===== FINAL STATISTICS =====\n";
-
-        std::cout << "\n--- LATENCY ---\n";
-        std::cout << "Avg: " << Statistics::average(latencies) << std::endl;
-        std::cout << "Var: " << Statistics::variance(latencies) << std::endl;
-        std::cout << "Min: " << Statistics::minimum(latencies) << std::endl;
-        std::cout << "Max: " << Statistics::maximum(latencies) << std::endl;
-
-        std::cout << "\n--- THROUGHPUT ---\n";
-        std::cout << "Avg: " << Statistics::average(throughputs) << std::endl;
-        std::cout << "Var: " << Statistics::variance(throughputs) << std::endl;
-        std::cout << "Min: " << Statistics::minimum(throughputs) << std::endl;
-        std::cout << "Max: " << Statistics::maximum(throughputs) << std::endl;
-
-        std::cout << "\n--- LOSS ---\n";
-        std::cout << "Avg: " << Statistics::average(losses) << std::endl;
-        std::cout << "Var: " << Statistics::variance(losses) << std::endl;
-        std::cout << "Min: " << Statistics::minimum(losses) << std::endl;
-        std::cout << "Max: " << Statistics::maximum(losses) << std::endl;
+        sim.init_system();
+        sim.init_traffic();
+        sim.run();
+        sim.finalize();
 
         return 0;
     } catch (const std::exception& e) {

@@ -30,3 +30,14 @@ max_sleep_ms=50
 enable_retransmission=1
 rtx_timeout_ms=50
 max_retransmissions=3
+
+# ========== PERFORMANCE PROFILING CONFIG ==========
+# Enable/disable performance profiling
+enable_profiling=1
+
+# Enable/disable parallel routing computation
+enable_parallel_routing=0
+
+# Maximum nodes supported
+max_nodes=1000
+

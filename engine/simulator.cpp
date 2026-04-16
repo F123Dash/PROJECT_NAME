@@ -8,6 +8,7 @@
 #include <map>
 #include <fstream>
 #include <sstream>
+#include <cmath>
 
 extern double current_time;
 extern void run_event_loop(double end_time);
@@ -39,6 +40,48 @@ static std::ofstream log_file;
 static TeeStreamBuffer* tee_buf = nullptr;
 static std::streambuf* original_cout_buf = nullptr;
 
+// Helper function to write JSON output
+void write_json_output() {
+    std::ofstream out("data_output/result.json");
+    
+    if (!out.is_open()) {
+        std::cerr << "[Simulator] ERROR: Could not open data_output/result.json" << std::endl;
+        return;
+    }
+    
+    // Get metrics from MetricsManager
+    MetricsManager* metrics_mgr = MetricsManager::getInstance();
+    GlobalMetrics metrics = metrics_mgr->computeGlobalMetrics();
+    
+    // Write JSON
+    out << "{\n";
+    out << "  \"latency\": " << metrics.avg_latency << ",\n";
+    out << "  \"throughput\": " << metrics.throughput << ",\n";
+    out << "  \"packet_loss\": " << (metrics.loss_rate / 100.0) << ",\n";
+    out << "  \"packets_sent\": " << metrics.total_packets << ",\n";
+    out << "  \"packets_delivered\": " << metrics.delivered << ",\n";
+    out << "  \"packets_dropped\": " << metrics.dropped << ",\n";
+    out << "  \"average_hops\": " << metrics.avg_hops << ",\n";
+    out << "  \"jitter\": " << metrics.jitter << ",\n";
+    out << "  \"min_latency\": " << (metrics.min_latency == INT_MAX ? 0 : metrics.min_latency) << ",\n";
+    out << "  \"max_latency\": " << metrics.max_latency << ",\n";
+    
+    metrics_mgr->exportLatencySeriesToJSON(out);
+    
+    // Inject the event history directly from the Logger instance natively into the JSON structure
+    Logger* logEngine = Logger::getInstance();
+    if(logEngine) {
+        logEngine->exportToJSON(out);
+    } else {
+        out << "  \"events\": []\n";
+    }
+    
+    out << "}\n";
+    
+    out.close();
+    std::cout << "[Simulator] JSON output written to data_output/result.json" << std::endl;
+}
+
 Simulator::Simulator() {
     graph = nullptr;
     integration = nullptr;
@@ -62,6 +105,26 @@ void Simulator::load_config(const std::string& filename) {
     std::cout << "[Simulator]   Configuration loaded" << std::endl;
 }
 
+// Helper: export full adjacency list to JSON for frontend visualization
+static void export_topology_json(Graph* graph) {
+    std::ofstream topo_out("data_output/topology_edges.json");
+    if (!topo_out.is_open()) return;
+    topo_out << "[\n";
+    bool first = true;
+    for (int u = 0; u < graph->V; u++) {
+        for (const auto& [v, w] : graph->adj[u]) {
+            if (u < v) { // avoid duplicates for undirected
+                if (!first) topo_out << ",\n";
+                first = false;
+                topo_out << "  {\"from\": " << u << ", \"to\": " << v << ", \"weight\": " << w << "}";
+            }
+        }
+    }
+    topo_out << "\n]\n";
+    topo_out.close();
+    std::cout << "[Simulator]   Topology edges exported to data_output/topology_edges.json" << std::endl;
+}
+
 // ---------------- PHASE 1: LOAD GRAPH ----------------
 void Simulator::load_topology() {
     ScopedTimer timer("load_topology");
@@ -76,6 +139,13 @@ void Simulator::load_topology() {
         graph = new Graph(generate_graph(GraphType::RANDOM, num_nodes, probability, 0, 0, 1, 10));
     } else if (topology_type == "tree") {
         graph = new Graph(generate_graph(GraphType::TREE, num_nodes, 0, 0, 0, 1, 10));
+    } else if (topology_type == "grid") {
+        int rows = 0, cols = 0;
+        try { rows = config.get_int("grid_rows"); } catch(...) {}
+        try { cols = config.get_int("grid_cols"); } catch(...) {}
+        if (rows <= 0) rows = (int)std::sqrt(num_nodes);
+        if (cols <= 0) cols = (num_nodes + rows - 1) / rows;
+        graph = new Graph(generate_graph(GraphType::GRID, 0, 0, rows, cols, 1, 10));
     } else {
         throw std::runtime_error("Unknown topology type: " + topology_type);
     }
@@ -85,7 +155,53 @@ void Simulator::load_topology() {
     double latency = config.get_double("delay");
     graph->setDefaultLinkProperties(bandwidth, latency);
     
+    // Export full adjacency list for frontend
+    export_topology_json(graph);
+    
     std::cout << "[Simulator]   Graph created: " << graph->V << " nodes (type=" << topology_type << ")" << std::endl;
+    std::cout << "[Simulator]   Link properties: bandwidth=" << bandwidth << " Mbps, latency=" << latency << " ms" << std::endl;
+}
+
+// Load topology from custom file (format: u v weight)
+void Simulator::load_topology_from_file(const std::string& filename) {
+    ScopedTimer timer("load_topology_from_file");
+    
+    std::cout << "\n[Simulator] Phase 1b: Loading custom topology from file: " << filename << std::endl;
+    
+    std::ifstream infile(filename);
+    if (!infile.is_open()) {
+        throw std::runtime_error("Failed to open topology file: " + filename);
+    }
+    
+    int u, v, w;
+    int max_node = 0;
+    std::vector<std::tuple<int, int, int>> edges;
+    
+    // Read all edges and find max node ID
+    while (infile >> u >> v >> w) {
+        edges.push_back({u, v, w});
+        max_node = std::max(max_node, u);
+        max_node = std::max(max_node, v);
+    }
+    infile.close();
+    
+    // Create graph with max_node + 1 nodes
+    graph = new Graph(max_node + 1);
+    
+    // Add edges to graph
+    for (const auto& [u, v, w] : edges) {
+        graph->add_edge(u, v, w);
+    }
+    
+    // Set link properties from config
+    double bandwidth = config.get_double("bandwidth");
+    double latency = config.get_double("delay");
+    graph->setDefaultLinkProperties(bandwidth, latency);
+    
+    // Export full adjacency list for frontend
+    export_topology_json(graph);
+    
+    std::cout << "[Simulator]   Graph loaded: " << graph->V << " nodes, " << edges.size() << " edges" << std::endl;
     std::cout << "[Simulator]   Link properties: bandwidth=" << bandwidth << " Mbps, latency=" << latency << " ms" << std::endl;
 }
 
@@ -228,6 +344,9 @@ void Simulator::finalize() {
         profiler->report(std::cout);
         profiler->exportCSV("profiler_report.csv");
     }
+
+    // Write JSON result file
+    write_json_output();
 
     std::cout << "\n[Simulator] Done." << std::endl;
     

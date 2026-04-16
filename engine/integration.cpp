@@ -86,8 +86,8 @@ void Integration::build_routing_tables() {
 
         nodes[i]->routing_table = routing;
         
-        // Debug: Log routing decisions
-        if (DEBUG_MODE) {
+        // Debug: Log routing decisions (only for small graphs)
+        if (DEBUG_MODE && n <= 50) {
             for (int dest = 0; dest < n; dest++) {
                 if (dest != i && routing[dest] != -1) {
                     log(LogLevel::DEBUG,
@@ -101,14 +101,16 @@ void Integration::build_routing_tables() {
 
     cout << "[Integration]   Routing tables built" << endl;
     
-    // Debug: Print routing tables
-    cout << "[Integration] Routing table contents:" << endl;
-    for (int i = 0; i < n; i++) {
-        cout << "  [Node " << i << "] ";
-        for (int dest = 0; dest < n; dest++) {
-            cout << dest << "->" << nodes[i]->routing_table[dest] << " ";
+    // Debug: Print routing tables (only for small graphs)
+    if (n <= 50) {
+        cout << "[Integration] Routing table contents:" << endl;
+        for (int i = 0; i < n; i++) {
+            cout << "  [Node " << i << "] ";
+            for (int dest = 0; dest < n; dest++) {
+                cout << dest << "->" << nodes[i]->routing_table[dest] << " ";
+            }
+            cout << endl;
         }
-        cout << endl;
     }
     
     // Analyze topology using graph_analysis functions
