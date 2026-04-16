@@ -265,6 +265,8 @@ void Logger::exportToCSV(const string& filename) {
         else if (entry.event == LogEventType::PACKET_DELIVERED) event_str = "DELIVERED";
         else if (entry.event == LogEventType::PACKET_DROPPED) event_str = "DROPPED";
         else if (entry.event == LogEventType::ROUTING_DECISION) event_str = "ROUTING";
+        else if (entry.event == LogEventType::QUEUE_ENQUEUE) event_str = "QUEUE_ENQUEUE";
+        else if (entry.event == LogEventType::QUEUE_DEQUEUE) event_str = "QUEUE_DEQUEUE";
         else event_str = "OTHER";
         
         file << entry.timestamp << ","
@@ -279,6 +281,50 @@ void Logger::exportToCSV(const string& filename) {
     
     file.close();
     cout << "[Logger] Logs exported to CSV: " << filename << endl;
+}
+
+void Logger::exportToJSON(ostream& out) const {
+    out << "  \"events\": [\n";
+    for (size_t i = 0; i < log_buffer.size(); i++) {
+        const auto& entry = log_buffer[i];
+        string event_str = "OTHER";
+        if (entry.event == LogEventType::PACKET_CREATED) event_str = "CREATED";
+        else if (entry.event == LogEventType::PACKET_FORWARDED) event_str = "FORWARDED";
+        else if (entry.event == LogEventType::PACKET_DELIVERED) event_str = "DELIVERED";
+        else if (entry.event == LogEventType::PACKET_DROPPED) event_str = "DROPPED";
+        else if (entry.event == LogEventType::ROUTING_DECISION) event_str = "ROUTING";
+        else if (entry.event == LogEventType::QUEUE_ENQUEUE) event_str = "QUEUE_ENQUEUE";
+        else if (entry.event == LogEventType::QUEUE_DEQUEUE) event_str = "QUEUE_DEQUEUE";
+        
+        out << "    {";
+        out << "\"time\": " << entry.timestamp << ", ";
+        out << "\"type\": \"" << event_str << "\", ";
+        out << "\"packetId\": " << entry.packet_id << ", ";
+        out << "\"from\": " << entry.current_node << ", ";
+        
+        // Handle next_hop safely mapping strictly for physically transitioning parameters
+        int to_node = entry.current_node; // Default to current node binding internal state properly to its host 
+        if (entry.event == LogEventType::PACKET_FORWARDED) {
+            to_node = entry.next_hop;
+            if (to_node < 0) to_node = entry.dest_node; 
+        }
+        
+        out << "\"to\": " << to_node << ", ";
+        
+        // Escape quotes securely
+        string safe_msg = entry.message;
+        size_t pos = 0;
+        while ((pos = safe_msg.find("\"", pos)) != string::npos) {
+             safe_msg.replace(pos, 1, "\\\"");
+             pos += 2;
+        }
+        
+        out << "\"logLine\": \"[LOG] T=" << entry.timestamp << " " << safe_msg << "\"";
+        out << "}";
+        if (i < log_buffer.size() - 1) out << ",";
+        out << "\n";
+    }
+    out << "  ]\n";
 }
 
 // ============================================================================

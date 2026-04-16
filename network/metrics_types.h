@@ -22,6 +22,7 @@ struct PerPacketMetrics {
     int packet_id;
     int source;
     int destination;
+    int packet_size_bytes;
     int creation_time;
     int delivery_time;           // -1 if not delivered
     int latency;                 // -1 if not delivered
@@ -32,7 +33,7 @@ struct PerPacketMetrics {
     string status_reason;
     
     PerPacketMetrics()
-        : packet_id(-1), source(-1), destination(-1), creation_time(0),
+                : packet_id(-1), source(-1), destination(-1), packet_size_bytes(0), creation_time(0),
           delivery_time(-1), latency(-1), first_hop_time(-1), hop_count(0),
           queue_delay(0), status(PacketStatus::CREATED), status_reason("") {}
 };
@@ -55,7 +56,7 @@ struct GlobalMetrics {
     double jitter;  // Standard deviation
     
     // Throughput & Hops
-    double throughput;  // packets per time unit
+    double throughput;  // bits per time unit
     double avg_hops;
     
     // Loss

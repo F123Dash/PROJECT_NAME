@@ -50,6 +50,7 @@ public:
     void printLogs() const;
     void exportToFile();
     void exportToCSV(const string& filename);
+    void exportToJSON(ostream& out) const;
     
     // Stats
     int getTotalLogs() const { return total_logs; }

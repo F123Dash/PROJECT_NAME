@@ -101,6 +101,7 @@ public:
     void printMetricsReport();
     void exportMetricsCSV();
     void exportMetricsToFile(const string& filename);
+    void exportLatencySeriesToJSON(std::ostream& out) const;
 };
 
 // Global metrics printer

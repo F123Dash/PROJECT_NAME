@@ -72,6 +72,7 @@ int MetricsManager::onPacketCreated(int src, int dst, int creation_time, int siz
     ppm.packet_id = packet_id;
     ppm.source = src;
     ppm.destination = dst;
+    ppm.packet_size_bytes = max(0, size);
     ppm.creation_time = creation_time;
     ppm.status = PacketStatus::CREATED;
     
@@ -212,6 +213,7 @@ GlobalMetrics MetricsManager::computeGlobalMetrics() {
     
     vector<int> latencies;
     int total_hops = 0;
+    long long delivered_bits = 0;
     
     // Single pass through all packets
     for (const auto& [id, ppm] : packets) {
@@ -219,6 +221,7 @@ GlobalMetrics MetricsManager::computeGlobalMetrics() {
             gm.delivered++;
             latencies.push_back(ppm.latency);
             total_hops += ppm.hop_count;
+            delivered_bits += static_cast<long long>(max(0, ppm.packet_size_bytes)) * 8LL;
             
             gm.min_latency = min(gm.min_latency, (double)ppm.latency);
             gm.max_latency = max(gm.max_latency, (double)ppm.latency);
@@ -257,11 +260,10 @@ GlobalMetrics MetricsManager::computeGlobalMetrics() {
         ? (double)gm.dropped / gm.total_packets * 100.0
         : 0.0;
     
-    // Calculate throughput (packets per time unit)
-    int time_range = sim_end_time - sim_start_time;
-    gm.throughput = (time_range > 0)
-        ? (double)gm.delivered / time_range
-        : 0.0;
+    // Calculate throughput: delivered_bits / simulation_duration (bits per time unit)
+    // Guard against zero duration (e.g., when start == end due to integer truncation)
+    int time_range = max(1, sim_end_time - sim_start_time);
+    gm.throughput = static_cast<double>(delivered_bits) / time_range;
     
     return gm;
 }
@@ -295,7 +297,7 @@ void MetricsManager::printMetricsReport() {
     cout << "\n--- NETWORK PERFORMANCE ---" << endl;
     cout << "Packet Loss Rate:             " << gm.loss_rate << " %" << endl;
     cout << "Average Hops per Packet:      " << gm.avg_hops << endl;
-    cout << "Throughput (pkt/ms):          " << gm.throughput << endl;
+    cout << "Throughput (bit/ms):          " << gm.throughput << endl;
     
     cout << "\n--- SIMULATION TIME ---" << endl;
     cout << "Start Time:                   " << sim_start_time << " ms" << endl;
@@ -359,7 +361,7 @@ void MetricsManager::exportMetricsToFile(const string& filename) {
     file << "Max Latency (ms)," << gm.max_latency << "\n";
     file << "Packet Loss Rate (%)," << gm.loss_rate << "\n";
     file << "Average Hops," << gm.avg_hops << "\n";
-    file << "Throughput (pkt/ms)," << gm.throughput << "\n";
+    file << "Throughput (bit/ms)," << gm.throughput << "\n";
     
     file.close();
     cout << "[MetricsManager] Metrics exported to " << filename << endl;
@@ -382,5 +384,19 @@ void print_metrics() {
     cout << "Max Latency (ms): " << gm.max_latency << "\n";
     cout << "Packet Loss Rate (%): " << gm.loss_rate << "\n";
     cout << "Average Hops: " << gm.avg_hops << "\n";
-    cout << "Throughput (pkt/ms): " << gm.throughput << "\n";
+    cout << "Throughput (bit/ms): " << gm.throughput << "\n";
 }
+
+void MetricsManager::exportLatencySeriesToJSON(std::ostream& out) const {
+    out << "  \"latency_series\": [\n";
+    bool first = true;
+    for (const auto& [id, ppm] : packets) {
+        if (ppm.status == PacketStatus::DELIVERED) {
+            if (!first) out << ",\n";
+            first = false;
+            out << "    {\"time\": " << ppm.delivery_time << ", \"value\": " << ppm.latency << "}";
+        }
+    }
+    out << "\n  ],\n";
+}
+
