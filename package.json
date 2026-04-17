@@ -1,5 +1,5 @@
 {
-  "name": "project_name",
+  "name": "minty-ns",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
@@ -14,16 +14,16 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/F123Dash/PROJECT_NAME.git"
+    "url": "git+https://github.com/F123Dash/Minty-NS.git"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "bugs": {
-    "url": "https://github.com/F123Dash/PROJECT_NAME/issues"
+    "url": "https://github.com/F123Dash/Minty-NS/issues"
   },
-  "homepage": "https://github.com/F123Dash/PROJECT_NAME#readme",
+  "homepage": "https://github.com/F123Dash/Minty-NS#readme",
   "dependencies": {
     "body-parser": "^2.2.2",
     "cors": "^2.8.6",
