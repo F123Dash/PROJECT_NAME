@@ -677,7 +677,7 @@ const NetworkSimulatorApp = () => {
       {/* TOP BAR */}
       <div className="timeline-bar">
         <Activity color="var(--accent-color)" size={20} />
-        <h2 style={{ margin: 0, border: 'none', color: '#fff', whiteSpace: 'nowrap', fontSize: 14 }}>NSim Pro</h2>
+        <h2 style={{ margin: 0, border: 'none', color: '#fff', whiteSpace: 'nowrap', fontSize: 14 }}>Minty NS</h2>
 
         <div className="timeline-controls">
           <button className="btn" onClick={() => { if (events.length) setIsPaused(!isPaused); }} title={isPaused ? 'Play' : 'Pause'}>
