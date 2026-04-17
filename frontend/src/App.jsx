@@ -3,7 +3,7 @@ import {
   ReactFlow, Controls, Background,
   useNodesState, useEdgesState, addEdge,
   useReactFlow, ReactFlowProvider,
-  MarkerType, Handle, Position, useViewport
+  MarkerType, Handle, Position
 } from '@xyflow/react';
 import axios from 'axios';
 import {
@@ -13,100 +13,6 @@ import {
   Plus, Zap, Upload, Route, Target, MapPin
 } from 'lucide-react';
 import * as d3 from 'd3-force';
-
-
-// ═══════════════════════════════════════════════════════════════
-// JS implementations of shortest path algorithms (for comparison)
-// ═══════════════════════════════════════════════════════════════
-function buildAdjList(rfEdges) {
-  const adj = {};
-  for (const e of rfEdges) {
-    const u = parseInt(e.source ?? e.from), v = parseInt(e.target ?? e.to), w = e.data?.weight ?? e.weight ?? 1;
-    if (!adj[u]) adj[u] = [];
-    if (!adj[v]) adj[v] = [];
-    adj[u].push({ to: v, w });
-    adj[v].push({ to: u, w });
-  }
-  return adj;
-}
-
-function dijkstraJS(adj, nodeCount, src) {
-  const dist = Array(nodeCount).fill(Infinity);
-  const parent = Array(nodeCount).fill(-1);
-  dist[src] = 0;
-  const visited = new Set();
-  // Min-heap using array
-  const pq = [[0, src]];
-  while (pq.length > 0) {
-    pq.sort((a, b) => a[0] - b[0]);
-    const [d, u] = pq.shift();
-    if (visited.has(u)) continue;
-    visited.add(u);
-    if (!adj[u]) continue;
-    for (const { to: v, w } of adj[u]) {
-      if (dist[u] + w < dist[v]) {
-        dist[v] = dist[u] + w;
-        parent[v] = u;
-        pq.push([dist[v], v]);
-      }
-    }
-  }
-  return { dist, parent };
-}
-
-function bellmanFordJS(adj, nodeCount, src) {
-  const dist = Array(nodeCount).fill(Infinity);
-  const parent = Array(nodeCount).fill(-1);
-  dist[src] = 0;
-  const edges = [];
-  for (let u = 0; u < nodeCount; u++) {
-    if (!adj[u]) continue;
-    for (const { to: v, w } of adj[u]) edges.push({ u, v, w });
-  }
-  for (let i = 0; i < nodeCount - 1; i++) {
-    for (const { u, v, w } of edges) {
-      if (dist[u] !== Infinity && dist[u] + w < dist[v]) {
-        dist[v] = dist[u] + w;
-        parent[v] = u;
-      }
-    }
-  }
-  let hasNegCycle = false;
-  for (const { u, v, w } of edges) {
-    if (dist[u] !== Infinity && dist[u] + w < dist[v]) { hasNegCycle = true; break; }
-  }
-  return { dist, parent, hasNegCycle };
-}
-
-function bfsJS(adj, nodeCount, src) {
-  const dist = Array(nodeCount).fill(Infinity);
-  const parent = Array(nodeCount).fill(-1);
-  dist[src] = 0;
-  const queue = [src];
-  let head = 0;
-  while (head < queue.length) {
-    const u = queue[head++];
-    if (!adj[u]) continue;
-    for (const { to: v } of adj[u]) {
-      if (dist[v] === Infinity) {
-        dist[v] = dist[u] + 1;
-        parent[v] = u;
-        queue.push(v);
-      }
-    }
-  }
-  return { dist, parent };
-}
-
-function reconstructPath(parent, dst) {
-  const path = [];
-  for (let v = dst; v !== -1; v = parent[v]) {
-    path.unshift(v);
-    if (path.length > 1000) break;
-  }
-  return path[0] === undefined ? [] : path;
-}
-
 
 // ═══════════════════════════════════════════════════════════════
 // Custom Node
@@ -158,25 +64,6 @@ const defaultEdgeOptions = {
   markerEnd: { type: MarkerType.ArrowClosed, color: 'var(--text-secondary)' },
 };
 
-// Packet SVG overlay
-const PacketOverlay = ({ packets }) => {
-  const { x, y, zoom } = useViewport();
-  return (
-    <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 100 }}>
-      <g transform={`translate(${x},${y}) scale(${zoom})`}>
-        {Object.entries(packets).map(([k, p]) => (
-          <g key={`pkt-${k}`}>
-            <circle cx={p.x} cy={p.y} r={5} fill="var(--accent-color)" opacity={0.85}>
-              <animate attributeName="r" values="4;7;4" dur="0.5s" repeatCount="indefinite" />
-            </circle>
-            <circle cx={p.x} cy={p.y} r={2.5} fill="#fff" />
-          </g>
-        ))}
-      </g>
-    </svg>
-  );
-};
-
 
 // ═══════════════════════════════════════════════════════════════
 // Main Application
@@ -205,9 +92,15 @@ const NetworkSimulatorApp = () => {
   const [spResult, setSpResult] = useState(null);
   const [spCompare, setSpCompare] = useState(null);
 
+  // MST
+  const [mstResult, setMstResult] = useState(null);
+  const [mstCompare, setMstCompare] = useState(null);
+  const [mstShowOverlay, setMstShowOverlay] = useState(false);
+  const [mstVsSpResult, setMstVsSpResult] = useState(null);
+  const [complexityData, setComplexityData] = useState(null);
+
   // Simulation telemetry
   const [events, setEvents] = useState([]);
-  const [animSegments, setAnimSegments] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [fullLog, setFullLog] = useState('');
 
@@ -216,7 +109,6 @@ const NetworkSimulatorApp = () => {
   const [isPaused, setIsPaused] = useState(true);
   const [packetDuration, setPacketDuration] = useState(12);
   const [msPerFrame, setMsPerFrame] = useState(0.05);
-  const [activePackets, setActivePackets] = useState({});
 
   // UI
   const [tab, setTab] = useState('config');
@@ -231,7 +123,6 @@ const NetworkSimulatorApp = () => {
   const isPausedRef = useRef(true); isPausedRef.current = isPaused;
   const simTimeRef = useRef(0); simTimeRef.current = simTime;
   const eventsRef = useRef([]); eventsRef.current = events;
-  const animSegmentsRef = useRef([]); animSegmentsRef.current = animSegments;
 
 
   // ─── D3 Layout ───
@@ -313,13 +204,23 @@ const NetworkSimulatorApp = () => {
     setFullLog('');
     setSimTime(0);
     simTimeRef.current = 0;
-    setActivePackets({});
     setSpResult(null);
     setSpCompare(null);
     setStatus('Running C++ simulator...');
 
     try {
-      const payload = { configOverrides: { ...cfg, ...overrides } };
+      const sourceValue = parseInt(sourceNode, 10);
+      const destinationValue = parseInt(destNode, 10);
+      const fallbackDestination = Math.max(0, (parseInt(cfg.nodes, 10) || 1) - 1);
+
+      const payload = {
+        configOverrides: {
+          ...cfg,
+          ...overrides,
+          source: Number.isFinite(sourceValue) ? sourceValue : 0,
+          destination: Number.isFinite(destinationValue) ? destinationValue : fallbackDestination
+        }
+      };
       if (customTopo) payload.topology = customTopo;
 
       const res = await axios.post('http://localhost:3000/run', payload, { timeout: 300000 });
@@ -407,45 +308,6 @@ const NetworkSimulatorApp = () => {
         return true;
       });
 
-      // NEW LOGIC: Pre-calculate exact sequential animation segments per packet
-      const packetHops = {};
-      dedupedEvts.forEach(ev => {
-        if (ev._animFrom !== undefined && ev._animTo !== undefined) {
-          if (!packetHops[ev.packetId]) packetHops[ev.packetId] = [];
-          packetHops[ev.packetId].push({
-             time: ev.time,
-             from: ev._animFrom,
-             to: ev._animTo
-          });
-        }
-      });
-
-      const segments = [];
-      Object.keys(packetHops).forEach(pktId => {
-        const hops = packetHops[pktId].sort((a,b) => a.time - b.time);
-        for(let i=0; i<hops.length; i++) {
-           let duration = 2; // default if last hop
-           if (i < hops.length - 1) {
-              duration = hops[i+1].time - hops[i].time;
-           } else {
-              const delivered = dedupedEvts.find(e => e.packetId == pktId && e.type === 'DELIVERED');
-              if (delivered && delivered.time > hops[i].time) {
-                 duration = delivered.time - hops[i].time;
-              }
-           }
-           if (duration > 0) {
-             segments.push({
-               packetId: pktId,
-               time: hops[i].time,
-               from: hops[i].from,
-               to: hops[i].to,
-               duration: duration
-             });
-           }
-        }
-      });
-
-      setAnimSegments(segments);
       setEvents(dedupedEvts);
       layoutAndSet(rfNodes, rfEdges);
 
@@ -528,36 +390,77 @@ const NetworkSimulatorApp = () => {
     runSimulation({ nodes: `${maxN}` }, topo);
   };
 
-
-  // ─── Shortest Path ───
-  const runShortestPath = (algo) => {
-    if (edges.length === 0) { setError('No graph loaded.'); return; }
-    const src = parseInt(sourceNode);
-    const dst = parseInt(destNode);
-    if (isNaN(src) || isNaN(dst)) { setError('Set source and destination first.'); return; }
-    const adj = buildAdjList(edges);
+  // ─── Direct Backend Analysis C++ Bridge ───
+  const callAnalysisTool = async () => {
+    if (edges.length === 0) { setError('Load a graph first.'); return null; }
+    const src = parseInt(sourceNode) || 0;
+    const dst = parseInt(destNode) || (nodes.length > 1 ? 1 : 0);
     const n = nodes.length;
 
-    const t0 = performance.now();
-    let res;
-    if (algo === 'dijkstra') res = dijkstraJS(adj, n, src);
-    else if (algo === 'bellman-ford') res = bellmanFordJS(adj, n, src);
-    else if (algo === 'bfs') res = bfsJS(adj, n, src);
-    const elapsed = performance.now() - t0;
+    const exportEdges = edges.map(e => ({
+      from: parseInt(e.source || e.from),
+      to: parseInt(e.target || e.to),
+      weight: e.data?.weight || parseInt(e.label) || 1
+    }));
 
-    const path = reconstructPath(res.parent, dst);
-    const cost = res.dist[dst];
-    const result = {
-      algorithm: algo, path, cost: cost === Infinity ? -1 : cost,
-      hops: path.length > 0 ? path.length - 1 : 0, time_ms: elapsed.toFixed(3)
-    };
-    setSpResult(result);
+    try {
+      const res = await axios.post('http://localhost:3000/analyze', {
+        nodeCount: n,
+        source: src,
+        dest: dst,
+        edges: exportEdges
+      });
+      if (res.data.error) {
+        setError(res.data.error);
+        return null;
+      }
+      return res.data.data;
+    } catch(err) {
+      setError(err.message);
+      return null;
+    }
+  };
 
-    // Highlight path edges
+
+  // ─── Shortest Path ───
+  const runShortestPath = async (algo) => {
+    if (edges.length === 0) { setError('No graph loaded.'); return; }
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
+
+    let pathStr = "", cost = -1, hops = 0, time_ms = "0.000";
+    if (algo === 'dijkstra') {
+        pathStr = data.shortest_path.path;
+        cost = data.shortest_path.cost;
+        hops = data.shortest_path.hops;
+        time_ms = data.shortest_path.dijkstra_time_ms.toFixed(3);
+    } else if (algo === 'bellman-ford') {
+        pathStr = "N/A (Check console/all algos)";
+        cost = "N/A";
+        time_ms = data.complexity.results.find(r => r.name === 'Bellman-Ford')?.measured_ms.toFixed(3) || 0;
+    } else if (algo === 'bfs') {
+        pathStr = "N/A";
+        cost = data.bfs_distance;
+        time_ms = data.complexity.results.find(r => r.name === 'BFS')?.measured_ms.toFixed(3) || 0;
+    }
+
+    const pathArr = (algo === 'dijkstra' && pathStr) ? pathStr.split(" -> ").map(Number) : [];
+
+    setSpResult({
+      algorithm: algo,
+      path: pathArr, // array here so we can highlight edges
+      cost,
+      hops,
+      time_ms
+    });
+
+    // Highlight path edges (only visual for algorithms that output exact path)
     setEdges(eds => eds.map(e => {
       const s = parseInt(e.source), t = parseInt(e.target);
-      const onPath = path.some((p, i) => i < path.length - 1 && (
-        (p === s && path[i + 1] === t) || (p === t && path[i + 1] === s)
+      const onPath = pathArr.some((p, i) => i < pathArr.length - 1 && (
+        (p === s && pathArr[i + 1] === t) || (p === t && pathArr[i + 1] === s)
       ));
       return {
         ...e,
@@ -568,41 +471,144 @@ const NetworkSimulatorApp = () => {
     }));
   };
 
-  const runComparison = () => {
+  const runComparison = async () => {
     if (edges.length === 0 || !sourceNode || !destNode) { setError('Set source/dest and load a graph first.'); return; }
-    const src = parseInt(sourceNode), dst = parseInt(destNode);
-    const adj = buildAdjList(edges);
-    const n = nodes.length;
-    const results = [];
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
 
-    for (const algo of ['dijkstra', 'bellman-ford', 'bfs']) {
-      const t0 = performance.now();
-      const res = algo === 'dijkstra' ? dijkstraJS(adj, n, src)
-                : algo === 'bellman-ford' ? bellmanFordJS(adj, n, src)
-                : bfsJS(adj, n, src);
-      const elapsed = performance.now() - t0;
-      const path = reconstructPath(res.parent, dst);
-      results.push({
-        algorithm: algo,
-        cost: res.dist[dst] === Infinity ? '∞' : res.dist[dst],
-        hops: path.length > 0 ? path.length - 1 : 0,
-        time_ms: elapsed.toFixed(3),
-        path: path.join('→')
-      });
+    setSpCompare([
+      {
+        algorithm: 'dijkstra',
+        cost: data.shortest_path.cost === -1 ? '∞' : data.shortest_path.cost,
+        hops: data.shortest_path.hops,
+        time_ms: data.shortest_path.dijkstra_time_ms.toFixed(3),
+        path: data.shortest_path.path
+      },
+      {
+        algorithm: 'bellman-ford',
+        cost: 'N/A',
+        hops: 'N/A',
+        time_ms: data.complexity.results.find(r=>r.name==='Bellman-Ford')?.measured_ms.toFixed(3) || 0,
+        path: 'N/A'
+      },
+      {
+        algorithm: 'bfs',
+        cost: data.bfs_distance === -1 ? '∞' : data.bfs_distance,
+        hops: data.bfs_distance === -1 ? 'N/A' : data.bfs_distance,
+        time_ms: data.complexity.results.find(r=>r.name==='BFS')?.measured_ms.toFixed(3) || 0,
+        path: 'N/A'
+      }
+    ]);
+  };
+
+  // ─── MST Computation ───
+  const runMST = async (algo) => {
+    if (edges.length === 0) { setError('Load a graph first.'); return; }
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
+
+    const res = data[algo];
+    if (!res) return;
+
+    setMstResult({
+      algorithm: algo,
+      edges: res.edges,
+      totalCost: res.totalCost,
+      edgeCount: res.edgeCount,
+      time_ms: res.time_ms.toFixed(3)
+    });
+
+    if (mstShowOverlay) {
+      applyMstOverlay(res.edges);
     }
-    setSpCompare(results);
   };
 
-
-  // ─── SVG edge path lookup ───
-  const getEdgePoint = (from, to, t) => {
-    let p = document.querySelector(`[data-id="e${from}-${to}"] path.react-flow__edge-path`);
-    let rev = false;
-    if (!p) { p = document.querySelector(`[data-id="e${to}-${from}"] path.react-flow__edge-path`); rev = true; }
-    if (!p) return null;
-    return p.getPointAtLength((rev ? 1 - t : t) * p.getTotalLength());
+  const applyMstOverlay = (mstEdgeList) => {
+    const mstSet = new Set();
+    for (const e of mstEdgeList) {
+      mstSet.add(Math.min(e.u, e.v) + '-' + Math.max(e.u, e.v));
+    }
+    setEdges(eds => eds.map(e => {
+      const s = parseInt(e.source), t = parseInt(e.target);
+      const key = Math.min(s, t) + '-' + Math.max(s, t);
+      const isMst = mstSet.has(key);
+      return {
+        ...e,
+        style: isMst
+          ? { stroke: '#f59e0b', strokeWidth: 3.5, strokeDasharray: 'none' }
+          : { stroke: 'rgba(255,255,255,0.08)', strokeWidth: 1 }
+      };
+    }));
   };
 
+  const clearEdgeStyles = () => {
+    setEdges(eds => eds.map(e => ({
+      ...e,
+      style: { stroke: 'var(--text-secondary)', strokeWidth: 2 }
+    })));
+  };
+
+  const runMSTComparison = async () => {
+    if (edges.length === 0) { setError('Load a graph first.'); return; }
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
+    
+    setMstCompare([
+       { algorithm: 'kruskal', totalCost: data.kruskal.totalCost, edgeCount: data.kruskal.edgeCount, time_ms: data.kruskal.time_ms.toFixed(3) },
+       { algorithm: 'prim', totalCost: data.prim.totalCost, edgeCount: data.prim.edgeCount, time_ms: data.prim.time_ms.toFixed(3) }
+    ]);
+  };
+
+  const runMSTvsShortestPath = async () => {
+    if (edges.length === 0 || !sourceNode || !destNode) { setError('Set source/dest and load a graph first.'); return; }
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
+
+    setMstVsSpResult({
+      shortest: {
+        path: data.shortest_path.path,
+        cost: data.shortest_path.cost === -1 ? 'No path' : data.shortest_path.cost,
+        hops: data.shortest_path.hops,
+        time_ms: data.shortest_path.dijkstra_time_ms.toFixed(3)
+      },
+      mst: {
+        path: data.mst_path.path,
+        cost: data.mst_path.cost === -1 ? 'No path' : data.mst_path.cost,
+        hops: data.mst_path.hops,
+        totalMstCost: data.kruskal.totalCost,
+        time_ms: data.kruskal.time_ms.toFixed(3)
+      },
+      pathStretch: (data.mst_path.path_stretch == null || data.mst_path.path_stretch === -1 || isNaN(data.mst_path.path_stretch)) 
+          ? 'N/A' : data.mst_path.path_stretch.toFixed(3)
+    });
+  };
+
+  // ─── Complexity Analysis ───
+  const runComplexityAnalysis = async () => {
+    if (edges.length === 0) { setError('Load a graph first.'); return; }
+    setIsLoading(true);
+    const data = await callAnalysisTool();
+    setIsLoading(false);
+    if (!data) return;
+
+    setComplexityData({
+       V: data.complexity.V,
+       E: data.complexity.E,
+       results: data.complexity.results.map(r => ({
+           name: r.name,
+           bigO: r.bigO,
+           measured: r.measured_ms.toFixed(3)
+       }))
+    });
+  };
 
   // ─── Animation loop ───
   useEffect(() => {
@@ -618,18 +624,7 @@ const NetworkSimulatorApp = () => {
         simTimeRef.current = next;
         setSimTime(next);
 
-        const pkts = {};
         const activeNodes = new Set();
-
-        // 1. Plot sequential packet animation using precomputed segments
-        for (const seg of animSegmentsRef.current) {
-          if (seg.time > next + 10) break; // optimize, depends on sort order if sorted
-          if (next >= seg.time && next <= seg.time + seg.duration) {
-            const prog = Math.max(0, Math.min(1, (next - seg.time) / seg.duration));
-            const pt = getEdgePoint(seg.from, seg.to, prog);
-            if (pt) pkts[`${seg.packetId}`] = { x: pt.x, y: pt.y };
-          }
-        }
 
         // 2. Active Nodes
         for (const ev of eventsRef.current) {
@@ -640,7 +635,6 @@ const NetworkSimulatorApp = () => {
             if (ev.from !== undefined && ev.from >= 0) activeNodes.add(String(ev.from));
           }
         }
-        setActivePackets(pkts);
 
         const qs = {};
         for (const ev of eventsRef.current) {
@@ -662,9 +656,9 @@ const NetworkSimulatorApp = () => {
 
   // ─── Checkpoints ───
   const checkpoints = useMemo(() => [...new Set(events.map(e => e.time))].sort((a, b) => a - b), [events]);
-  const goNext = () => { const t = checkpoints.find(c => c > simTime + 0.001); if (t !== undefined) { simTimeRef.current = t; setSimTime(t); setActivePackets({}); } };
-  const goPrev = () => { const t = [...checkpoints].reverse().find(c => c < simTime - 0.001); if (t !== undefined) { simTimeRef.current = t; setSimTime(t); setActivePackets({}); } };
-  const handleStop = () => { setIsPaused(true); simTimeRef.current = 0; setSimTime(0); setActivePackets({}); setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, active: false, queueCount: 0 } }))); };
+  const goNext = () => { const t = checkpoints.find(c => c > simTime + 0.001); if (t !== undefined) { simTimeRef.current = t; setSimTime(t); } };
+  const goPrev = () => { const t = [...checkpoints].reverse().find(c => c < simTime - 0.001); if (t !== undefined) { simTimeRef.current = t; setSimTime(t); } };
+  const handleStop = () => { setIsPaused(true); simTimeRef.current = 0; setSimTime(0); setNodes(nds => nds.map(n => ({ ...n, data: { ...n.data, active: false, queueCount: 0 } }))); };
 
 
   // ─── Derived ───
@@ -715,7 +709,7 @@ const NetworkSimulatorApp = () => {
             if (!events.length) return;
             const rect = e.currentTarget.getBoundingClientRect();
             const t = ((e.clientX - rect.left) / rect.width) * (maxEvtTime + packetDuration);
-            simTimeRef.current = t; setSimTime(t); setActivePackets({});
+            simTimeRef.current = t; setSimTime(t);
           }}>
             <div className="time-fill" style={{ width: `${progress * 100}%` }} />
           </div>
@@ -738,6 +732,9 @@ const NetworkSimulatorApp = () => {
           </button>
           <button className={`tab ${tab === 'path' ? 'active' : ''}`} onClick={() => setTab('path')}>
             <Route size={12} /> Path
+          </button>
+          <button className={`tab ${tab === 'mst' ? 'active' : ''}`} onClick={() => setTab('mst')}>
+            <Activity size={12} /> MST
           </button>
         </div>
 
@@ -775,7 +772,6 @@ const NetworkSimulatorApp = () => {
                     style={{ width: '100%', padding: 5, background: 'rgba(0,0,0,.3)', border: '1px solid var(--panel-border)', color: 'var(--text-primary)', borderRadius: 4, fontSize: 12 }}>
                     <option value="tree">Tree</option>
                     <option value="random">Random (Erdős–Rényi)</option>
-                    <option value="grid">Grid / Mesh</option>
                   </select>
                 </div>
                 {cfg.topology === 'random' && (
@@ -848,7 +844,7 @@ const NetworkSimulatorApp = () => {
                 const isA = idx === currentIdx;
                 return (
                   <div key={`q-${idx}`} className={`queue-item ${isA ? 'active' : ''}`}
-                    onClick={() => { simTimeRef.current = ev.time; setSimTime(ev.time); setActivePackets({}); }}>
+                    onClick={() => { simTimeRef.current = ev.time; setSimTime(ev.time); }}>
                     <span style={{ color: 'var(--text-secondary)', marginRight: 6, fontSize: 11 }}>T={ev.time.toFixed(2)}</span>
                     <span style={{ color: isA ? 'var(--accent-color)' : 'var(--text-primary)', fontSize: 11 }}>{ev.type}</span>
                     <span style={{ color: 'var(--text-secondary)', marginLeft: 'auto', fontSize: 10 }}>#{ev.packetId} {ev.from}→{ev.to}</span>
@@ -916,6 +912,39 @@ const NetworkSimulatorApp = () => {
                   </div>
                 </>
               )}
+
+              {/* COMPLEXITY ANALYSIS */}
+              <div style={{ marginTop: 12, borderTop: '1px solid var(--panel-border)', paddingTop: 8 }}>
+                <button className="btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 8, fontSize: 11, borderColor: '#06b6d4', color: '#06b6d4' }}
+                  onClick={runComplexityAnalysis} disabled={edges.length === 0}>
+                  <Zap size={13} /> Run Complexity Analysis
+                </button>
+                {complexityData && (
+                  <div style={{ background: 'rgba(6,182,212,0.06)', border: '1px solid rgba(6,182,212,0.3)', borderRadius: 6, padding: 8 }}>
+                    <div style={{ fontWeight: 700, color: '#06b6d4', marginBottom: 6, fontSize: 11 }}>
+                      Complexity Analysis (V={complexityData.V}, E={complexityData.E})
+                    </div>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid rgba(6,182,212,0.2)' }}>
+                          <th style={{ textAlign: 'left', padding: '3px 2px', color: 'var(--text-secondary)' }}>Algorithm</th>
+                          <th style={{ textAlign: 'right', padding: '3px 2px', color: 'var(--text-secondary)' }}>Big-O</th>
+                          <th style={{ textAlign: 'right', padding: '3px 2px', color: 'var(--text-secondary)' }}>Time (ms)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {complexityData.results.map(r => (
+                          <tr key={r.name} style={{ borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                            <td style={{ padding: '3px 2px', fontWeight: 600, color: '#06b6d4' }}>{r.name}</td>
+                            <td style={{ padding: '3px 2px', textAlign: 'right', fontFamily: 'monospace', color: 'var(--text-secondary)', fontSize: 9 }}>{r.bigO}</td>
+                            <td style={{ padding: '3px 2px', textAlign: 'right', fontWeight: 600, color: 'var(--accent-color)' }}>{r.measured}ms</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -963,7 +992,7 @@ const NetworkSimulatorApp = () => {
                     <div>Hops: <b>{spResult.hops}</b></div>
                     <div>Compute: <b>{spResult.time_ms}ms</b></div>
                     <div style={{ marginTop: 4, color: 'var(--text-secondary)', wordBreak: 'break-all' }}>
-                      Path: {spResult.path.join(' → ')}
+                      Path: {Array.isArray(spResult.path) ? spResult.path.join(' → ') : spResult.path}
                     </div>
                   </div>
                 </div>
@@ -996,6 +1025,141 @@ const NetworkSimulatorApp = () => {
               )}
             </div>
           )}
+
+          {/* MST TAB */}
+          {tab === 'mst' && (
+            <div style={{ fontSize: 12 }}>
+              <h3 style={{ fontSize: 12, marginBottom: 8 }}>Minimum Spanning Tree</h3>
+
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <button className="btn primary" style={{ flex: 1, justifyContent: 'center', height: 30, fontSize: 11 }}
+                  onClick={() => runMST('kruskal')} disabled={edges.length === 0}>
+                  Kruskal
+                </button>
+                <button className="btn primary" style={{ flex: 1, justifyContent: 'center', height: 30, fontSize: 11 }}
+                  onClick={() => runMST('prim')} disabled={edges.length === 0}>
+                  Prim
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', gap: 4, marginBottom: 8 }}>
+                <button className="btn" style={{ flex: 1, justifyContent: 'center', fontSize: 10, borderColor: '#f59e0b', color: '#f59e0b' }}
+                  onClick={() => {
+                    setMstShowOverlay(!mstShowOverlay);
+                    if (!mstShowOverlay && mstResult) applyMstOverlay(mstResult.edges);
+                    else clearEdgeStyles();
+                  }}>
+                  {mstShowOverlay ? 'Hide MST' : 'Show MST Overlay'}
+                </button>
+              </div>
+
+              {mstResult && (
+                <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid #f59e0b', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4, fontSize: 12 }}>
+                    {mstResult.algorithm.toUpperCase()} Result
+                  </div>
+                  <div style={{ fontSize: 11, lineHeight: 1.6 }}>
+                    <div>Total Cost: <b>{mstResult.totalCost}</b></div>
+                    <div>MST Edges: <b>{mstResult.edgeCount}</b> / {edges.length} total</div>
+                    <div>Compute: <b>{mstResult.time_ms}ms</b></div>
+                  </div>
+                </div>
+              )}
+
+              <button className="btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 8, fontSize: 11, borderColor: '#a855f7', color: '#a855f7' }}
+                onClick={runMSTComparison} disabled={edges.length === 0}>
+                <BarChart3 size={13} /> Compare Kruskal vs Prim
+              </button>
+
+              {mstCompare && (
+                <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid #a855f7', borderRadius: 6, padding: 8, marginBottom: 8 }}>
+                  <div style={{ fontWeight: 700, color: '#a855f7', marginBottom: 6, fontSize: 11 }}>Kruskal vs Prim</div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 11 }}>
+                    <thead>
+                      <tr>
+                        <th style={{ textAlign: 'left', padding: '2px', color: 'var(--text-secondary)' }}>Algo</th>
+                        <th style={{ textAlign: 'right', padding: '2px', color: 'var(--text-secondary)' }}>Cost</th>
+                        <th style={{ textAlign: 'right', padding: '2px', color: 'var(--text-secondary)' }}>Edges</th>
+                        <th style={{ textAlign: 'right', padding: '2px', color: 'var(--text-secondary)' }}>Time</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {mstCompare.map(r => (
+                        <tr key={r.algorithm}>
+                          <td style={{ padding: '3px 2px', fontWeight: 600, color: '#f59e0b' }}>{r.algorithm}</td>
+                          <td style={{ padding: '3px 2px', textAlign: 'right' }}>{r.totalCost}</td>
+                          <td style={{ padding: '3px 2px', textAlign: 'right' }}>{r.edgeCount}</td>
+                          <td style={{ padding: '3px 2px', textAlign: 'right', color: 'var(--event-color)' }}>{r.time_ms}ms</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              <h4 style={{ fontSize: 11, margin: '10px 0 6px', color: '#10b981', borderTop: '1px solid var(--panel-border)', paddingTop: 8 }}>
+                MST Path vs Shortest Path
+              </h4>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4, marginBottom: 8 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: '#10b981' }}>Source</label>
+                  <input type="number" value={sourceNode} onChange={e => setSourceNode(e.target.value)} style={{ borderColor: '#10b981' }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: '#f59e0b' }}>Destination</label>
+                  <input type="number" value={destNode} onChange={e => setDestNode(e.target.value)} style={{ borderColor: '#f59e0b' }} />
+                </div>
+              </div>
+
+              <button className="btn" style={{ width: '100%', justifyContent: 'center', marginBottom: 8, fontSize: 11, borderColor: '#10b981', color: '#10b981' }}
+                onClick={runMSTvsShortestPath} disabled={edges.length === 0 || !sourceNode || !destNode}>
+                <BarChart3 size={13} /> Compare MST vs Shortest Path
+              </button>
+
+              {mstVsSpResult && (
+                <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.4)', borderRadius: 6, padding: 8 }}>
+                  <div style={{ fontWeight: 700, color: '#10b981', marginBottom: 6, fontSize: 11 }}>
+                    Cost-Optimized (MST) vs Shortest Path
+                  </div>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 10 }}>
+                    <thead>
+                      <tr style={{ borderBottom: '1px solid rgba(16,185,129,0.2)' }}>
+                        <th style={{ textAlign: 'left', padding: '3px 2px', color: 'var(--text-secondary)' }}>Metric</th>
+                        <th style={{ textAlign: 'right', padding: '3px 2px', color: '#3b82f6' }}>Shortest</th>
+                        <th style={{ textAlign: 'right', padding: '3px 2px', color: '#f59e0b' }}>MST Path</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                        <td style={{ padding: '3px 2px', color: 'var(--text-secondary)' }}>Cost</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', fontWeight: 700, color: '#3b82f6' }}>{mstVsSpResult.shortest.cost}</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', fontWeight: 700, color: '#f59e0b' }}>{mstVsSpResult.mst.cost}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                        <td style={{ padding: '3px 2px', color: 'var(--text-secondary)' }}>Hops</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', color: '#3b82f6' }}>{mstVsSpResult.shortest.hops}</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', color: '#f59e0b' }}>{mstVsSpResult.mst.hops}</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid rgba(255,255,255,.03)' }}>
+                        <td style={{ padding: '3px 2px', color: 'var(--text-secondary)' }}>Compute Time</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', color: '#3b82f6' }}>{mstVsSpResult.shortest.time_ms}ms</td>
+                        <td style={{ padding: '3px 2px', textAlign: 'right', color: '#f59e0b' }}>{mstVsSpResult.mst.time_ms}ms</td>
+                      </tr>
+                      <tr>
+                        <td style={{ padding: '3px 2px', color: 'var(--text-secondary)' }}>Path Stretch</td>
+                        <td colSpan={2} style={{ padding: '3px 2px', textAlign: 'right', fontWeight: 700, color: '#10b981', fontSize: 12 }}>{mstVsSpResult.pathStretch}x</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                  <div style={{ fontSize: 9, color: 'var(--text-secondary)', marginTop: 6, lineHeight: 1.4 }}>
+                    <div>Shortest: {mstVsSpResult.shortest.path}</div>
+                    <div>MST Path: {mstVsSpResult.mst.path}</div>
+                    <div style={{ marginTop: 3 }}>Total MST Network Cost: <b style={{ color: '#f59e0b' }}>{mstVsSpResult.mst.totalMstCost}</b></div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -1016,7 +1180,6 @@ const NetworkSimulatorApp = () => {
         >
           <Background color="var(--text-secondary)" gap={25} size={1.5} opacity={0.1} />
           <Controls />
-          <PacketOverlay packets={activePackets} />
         </ReactFlow>
 
         {selectedNode && (() => {

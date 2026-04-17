@@ -10,6 +10,7 @@ DEP_DIR         := $(BUILD_DIR)/deps
 # Output executables
 TARGET          := $(BUILD_DIR)/simulator
 BACKEND_TARGET  := $(BUILD_DIR)/backend-runner
+ANALYSIS_TARGET := $(BUILD_DIR)/analysis-tool
 
 # Data output directory
 DATA_DIR        := data_output
@@ -96,7 +97,7 @@ endif
 .PHONY: all debug release clean rebuild help data-dir backend-runner
 
 # Default target
-all: $(TARGET) $(BACKEND_TARGET)
+all: $(TARGET) $(BACKEND_TARGET) $(ANALYSIS_TARGET)
 
 # Debug build
 debug:
@@ -117,6 +118,21 @@ $(BACKEND_TARGET): $(BACKEND_SRC) | $(BUILD_DIR)
 	@echo "[LINK] Linking backend runner $@..."
 	@$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
 	@echo "[SUCCESS] Built backend runner $@"
+
+# Analysis tool (MST, shortest path, complexity — uses existing algorithms)
+ANALYSIS_SRC := src/analysis_tool.cpp \
+               graphs/graphs.cpp \
+               graphs/graph_analysis.cpp \
+               algorithms/shortest_path.cpp \
+               algorithms/mst.cpp \
+               algorithms/union_find.cpp \
+               algorithms/metrics.cpp \
+               performance/profiler.cpp
+
+$(ANALYSIS_TARGET): $(ANALYSIS_SRC) | $(BUILD_DIR)
+	@echo "[LINK] Linking analysis tool $@..."
+	@$(CXX) $(CXXFLAGS) $^ $(LDFLAGS) -o $@
+	@echo "[SUCCESS] Built analysis tool $@"
 
 # Object files
 $(OBJ_DIR)/%.o: %.cpp | $(OBJ_DIR) $(DEP_DIR)

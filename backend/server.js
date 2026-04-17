@@ -11,14 +11,14 @@ app.use(cors());
 
 app.use(express.static(path.join(__dirname, "frontend", "dist")));
 
-const simulatorDir = path.join(__dirname, "..", "simulator");
-const dataInputDir = path.join(simulatorDir, "data_input");
-const dataOutputDir = path.join(simulatorDir, "data_output");
+const projectRoot = path.join(__dirname, "..");
+const dataInputDir = path.join(projectRoot, "data_input");
+const dataOutputDir = path.join(projectRoot, "data_output");
 if (!fs.existsSync(dataInputDir)) fs.mkdirSync(dataInputDir, { recursive: true });
 if (!fs.existsSync(dataOutputDir)) fs.mkdirSync(dataOutputDir, { recursive: true });
 
-const simPath = path.join(simulatorDir, "build", "simulator");
-const defaultConfigPath = path.join(simulatorDir, "config", "config.txt");
+const simPath = path.join(projectRoot, "build", "simulator");
+const defaultConfigPath = path.join(projectRoot, "config", "config.txt");
 
 // ─── GET /config — read config/config.txt ───
 app.get("/config", (req, res) => {
@@ -79,7 +79,7 @@ app.post("/run", (req, res) => {
         }
 
         // 3. Spawn the simulator — avoids any buffer overflow
-        const child = spawn(simPath, args, { cwd: simulatorDir });
+        const child = spawn(simPath, args, { cwd: projectRoot });
 
         // Drain stdout to prevent backpressure (C++ TeeStreamBuffer writes to simulation_console.log)
         child.stdout.resume();
@@ -109,7 +109,7 @@ app.post("/run", (req, res) => {
                 }
 
                 // Read full console log
-                const logPath = path.join(simulatorDir, "simulation_console.log");
+                const logPath = path.join(projectRoot, "simulation_console.log");
                 if (fs.existsSync(logPath)) {
                     payload.consoleLog = fs.readFileSync(logPath, "utf-8");
                 }
@@ -121,7 +121,7 @@ app.post("/run", (req, res) => {
                         payload.topology_edges = JSON.parse(fs.readFileSync(topoEdgesPath, "utf-8"));
                     } catch (e) {
                         // fallback: extract from CSV
-                        const csvPath = path.join(simulatorDir, "simulation_events.csv");
+                        const csvPath = path.join(projectRoot, "simulation_events.csv");
                         if (fs.existsSync(csvPath)) {
                             const edgeSet = new Set();
                             const csvLines = fs.readFileSync(csvPath, "utf-8").split("\n");
@@ -157,6 +157,46 @@ app.post("/run", (req, res) => {
 
     } catch (error) {
         res.json({ error: error.message });
+    }
+});
+// ─── POST /analyze — run the C++ analysis tool ───
+app.post("/analyze", (req, res) => {
+    const { nodeCount, source, dest, edges } = req.body;
+    try {
+        const topoPath = path.join(dataInputDir, "topology_edges.json");
+        fs.writeFileSync(topoPath, JSON.stringify(edges));
+
+        const analysisPath = path.join(projectRoot, "build", "analysis-tool");
+        const args = [`${nodeCount}`, `${source}`, `${dest}`, topoPath];
+
+        const child = spawn(analysisPath, args, { cwd: projectRoot });
+        let stdoutData = "";
+        let stderrData = "";
+
+        child.stdout.on("data", d => { stdoutData += d.toString(); });
+        child.stderr.on("data", d => { stderrData += d.toString(); });
+
+        child.on("close", (code) => {
+            if (code !== 0) {
+                return res.json({ error: stderrData || `Analysis tool exited with code ${code}` });
+            }
+            try {
+                // Find "{", as there might be other prints, though analysis_tool just prints JSON.
+                const startIdx = stdoutData.indexOf("{");
+                if (startIdx === -1) throw new Error("No JSON found in analysis output");
+                const jsonStr = stdoutData.substring(startIdx);
+                const parsed = JSON.parse(jsonStr);
+                return res.json({ ok: true, data: parsed });
+            } catch (err) {
+                return res.json({ error: "Parse error: " + err.message + "\nOutput: " + stdoutData });
+            }
+        });
+
+        child.on("error", (err) => {
+            return res.json({ error: "Failed to run analysis_tool: " + err.message });
+        });
+    } catch (err) {
+        res.json({ error: err.message });
     }
 });
 

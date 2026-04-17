@@ -273,9 +273,27 @@ void Simulator::init_system() {
 void Simulator::init_traffic() {
     std::cout << "\n[Simulator] Phase 3: Initializing traffic..." << std::endl;
 
+    int flow_source = 0;
+    int flow_destination = graph->V - 1;
+    try {
+        flow_source = config.get_int("source");
+    } catch (...) {
+        // Keep default source when not provided in config.
+    }
+    try {
+        flow_destination = config.get_int("destination");
+    } catch (...) {
+        // Keep default destination when not provided in config.
+    }
+
+    if (flow_source < 0) flow_source = 0;
+    if (flow_source >= graph->V) flow_source = graph->V - 1;
+    if (flow_destination < 0) flow_destination = 0;
+    if (flow_destination >= graph->V) flow_destination = graph->V - 1;
+
     Flow f;
-    f.source = 0;
-    f.destination = graph->V - 1;
+    f.source = flow_source;
+    f.destination = flow_destination;
     f.rate = config.get_double("rate");
     f.packet_size = config.get_int("packet_size");
     f.start_time = 0;
